@@ -54,8 +54,16 @@ void Object::setupVAO( float objectVerts[], float objectWidth )
 				 vec3( objectVerts[i+2], objectVerts[i+3], 0 ) ) );
 
   // ---- Create a VAO for this object ----
-
+ 
   // YOUR CODE HERE
+  float *verts=new float[segments.size()*4];
+  glGenVertexArrays(1,&VAO);
+  glBindVertexArray(VAO);
+  GLuint VBO;
+  glGenBuffers(1,&VBO);
+  glBindBuffer(GL_ARRAY_BUFFER,VBO);
+  glBufferData(GL_ARRAY_BUFFER,segments.size()*4*sizeof(float), verts,GL_STATIC_DRAW);
+  delete[] verts;
   
 }
 
