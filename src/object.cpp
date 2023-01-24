@@ -85,7 +85,7 @@ mat4 Object::modelToWorldTransform() const
   mat4 M;
 
   // YOUR CODE HERE
-
+  M=translate(position.x,position.y,0)*scale(scaleFactor,scaleFactor,0)*rotate(orientation.angle(),vec3(0,0,0));
   return M;
 }
 
