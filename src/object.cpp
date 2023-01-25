@@ -56,15 +56,16 @@ void Object::setupVAO( float objectVerts[], float objectWidth )
   // ---- Create a VAO for this object ----
  
   // YOUR CODE HERE
-  float *verts=new float[segments.size()*4];
+
   glGenVertexArrays(1,&VAO);
   glBindVertexArray(VAO);
   GLuint VBO;
-  glGenBuffers(1,&VBO);
-  glBindBuffer(GL_ARRAY_BUFFER,VBO);
-  glBufferData(GL_ARRAY_BUFFER,segments.size()*4*sizeof(float), verts,GL_STATIC_DRAW);
-  delete[] verts;
-  
+  glGenBuffers(1, &VBO);
+  glBindBuffer(GL_ARRAY_BUFFER, VBO);
+  glBufferData(GL_ARRAY_BUFFER, segments.size()*sizeof(Segment), objectVerts, GL_STATIC_DRAW);
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
+
 }
 
 
@@ -77,13 +78,15 @@ void Object::draw( mat4 &worldToViewTransform, GPUProgram *gpuProg )
   // YOUR CODE HERE (set the transform)                                                                      
 
   mat4 modelToViewTransform;
-
+  modelToViewTransform = worldToViewTransform * modelToWorldTransform();
+  glBindVertexArray(VAO);
   // Tell the shaders about the model-to-view transform.  (See MVP in asteroids.vert.)                       
 
   gpuProg->setMat4( "MVP", modelToViewTransform );
 
   // YOUR CODE HERE (call OpenGL to draw the VAO of this object)  
-
+ 
+  glDrawArrays(GL_LINE_LOOP, 0, segments.size() * 2);
 }
 
 
@@ -93,7 +96,7 @@ mat4 Object::modelToWorldTransform() const
   mat4 M;
 
   // YOUR CODE HERE
-  M=translate(position.x,position.y,0)*scale(scaleFactor,scaleFactor,0)*rotate(orientation.angle(),vec3(0,0,0));
+  M=translate(position.x,position.y,1.0f) * rotate(orientation.angle(), vec3(0, 0, 1.0f)) *scale(scaleFactor,scaleFactor,1.0f);
   return M;
 }
 
