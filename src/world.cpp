@@ -122,6 +122,13 @@ void World::updateState( float elapsedTime )
       // - the sub-asteroid scaleFactor and scoreValue should be
       //   modified from those of the parent asteroid.
 
+      for (unsigned int i = 0; i < asteroids.size(); i++) {
+
+          if (asteriods[i]->scaleFactor * ASTERIOD_SCALE_FACTOR_REDUCTION < MIN_ASTERIOD_SCALE_FACTOR) {
+
+          }
+      }
+
     }
   }
 }

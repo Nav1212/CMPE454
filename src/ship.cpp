@@ -38,7 +38,7 @@ Shell * Ship::fireShell()
 {
   // YOUR CODE HERE (below, find the correct position, velocity, and orientation for the shell)
 
-  return new Shell( vec3(0,0,0), vec3(0,0,0), quaternion(1,0,0,0) );
+  return new Shell( position, vec3(-SHELL_SPEED*sin(orientation.angle()), SHELL_SPEED * cos(orientation.angle()),1.0f), orientation );
 }
 
 
