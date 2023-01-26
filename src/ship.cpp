@@ -26,6 +26,9 @@ void Ship::addThrust( float deltaT )
   // since the object velocity is in the world coordinate system.
 
   // YOUR CODE HERE
+	velocity.x = velocity.x - SHIP_THRUST_ACCEL * sin(orientation.angle()) * deltaT;
+	velocity.y = velocity.y + SHIP_THRUST_ACCEL * cos(orientation.angle()) * deltaT;
+
 
 }
 
