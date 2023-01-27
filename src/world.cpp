@@ -119,16 +119,10 @@ void World::updateState(float elapsedTime)
             for (unsigned int j = 0; j < asteroids.size(); j++) {
                 // if asteroid intersects with segment path
                 if (asteroids[j]->intersects(path)) {
-
-                    // remove shell so that it doesn't go "through" asteroids
-                    shells.erase(shells.begin() + i);
-                    i--;
-
-                    // update global score
+                                        // update global score
                     score += asteroids[j]->scoreValue;
 
                     if (asteroids[j]->scaleFactor * ASTEROID_SCALE_FACTOR_REDUCTION >= MIN_ASTEROID_SCALE_FACTOR) {
-                        
                         // split asteroid (create 2 new asteroids)
                         Asteroid* sub1 = new Asteroid(asteroids[j]->centrePosition());
                         Asteroid* sub2 = new Asteroid(asteroids[j]->centrePosition());
@@ -139,7 +133,7 @@ void World::updateState(float elapsedTime)
                         sub2->scoreValue = asteroids[j]->scoreValue / 2;
                         sub1->scaleFactor = asteroids[j]->scaleFactor / 2;
                         sub2->scaleFactor = asteroids[j]->scaleFactor / 2;
-                        
+
                         sub1->velocity = ASTEROID_SPEED *
                                          (vec3(shell->velocity.y / SHELL_SPEED, -shell->velocity.x / SHELL_SPEED, 0));
                         sub2->velocity = ASTEROID_SPEED *
@@ -148,6 +142,9 @@ void World::updateState(float elapsedTime)
                         asteroids.push_back(sub1);
                         asteroids.push_back(sub2);
                     }
+
+                    // reset shell (effectively removing it so that it doesn't go "through" asteroids)
+                    shell->reset(vec3(0, 0, 0));
 
                     // remove original asteroid
                     asteroids.erase(asteroids.begin() + j);
