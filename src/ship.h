@@ -15,6 +15,7 @@
 #define SHIP_THRUST_ACCEL 50.0   // upon main thrust, acceleration in m/s/s
 #define SHIP_WIDTH 10		 // ship is 10 m wide
 #define SHIP_MASS 5000		 // ship is 5000 kg
+#define SHIP_SPIN_OUT 10.0		 // radians/s
 
 
 class Ship : public Object {

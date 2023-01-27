@@ -1,22 +1,20 @@
 // world.h
 
-
 #ifndef WORLD_H
 #define WORLD_H
 
-
 #include <vector>
-#include "headers.h"
-#include "ship.h"
+
 #include "asteroid.h"
+#include "gpuProgram.h"
+#include "headers.h"
 #include "main.h"
 #include "seq.h"
 #include "shell.h"
-#include "gpuProgram.h"
+#include "ship.h"
 
-
-#define WORLD_MIN vec3( 0, 0, 0 )
-#define WORLD_MAX vec3( SCREEN_WIDTH, SCREEN_WIDTH/SCREEN_ASPECT, 0 )
+#define WORLD_MIN vec3(0, 0, 0)
+#define WORLD_MAX vec3(SCREEN_WIDTH, SCREEN_WIDTH / SCREEN_ASPECT, 0)
 
 #define NUM_INITIAL_ASTEROIDS 10
 #define ASTEROID_SCALE_FACTOR_REDUCTION 0.5  // factor by which size changes upon breakup
@@ -27,46 +25,44 @@
 typedef enum { BEFORE_GAME, RUNNING, PAUSED, AFTER_GAME } State;
 
 class World {
+    GPUProgram *objectGPUProg;
 
-  GPUProgram *objectGPUProg;
-  
-  Ship *ship;
-  vector<Asteroid *> asteroids;
-  vector<Shell *> shells;
+    Ship *ship;
+    vector<Asteroid *> asteroids;
+    vector<Shell *> shells;
 
-  int score;
-  int round;
-  State state;			// game state
+    int score;
+    int lives;
+    int round;
+    State state;  // game state
 
- public:
+   public:
+    vec3 worldMin, worldMax;  // min and max world coordinates
 
-  vec3 worldMin, worldMax;	// min and max world coordinates
+    World(vec3 min, vec3 max) {
+        worldMin = min;
+        worldMax = max;
+        score = 0;
+        lives = 3;
+        round = 0;
 
-  World( vec3 min, vec3 max ) {
-    worldMin = min;
-    worldMax = max;
-    score = 0;
-    round = 0;
+        objectGPUProg = new GPUProgram();
+        objectGPUProg->initFromFile("asteroids.vert", "asteroids.frag", "asteroids");
 
-    objectGPUProg = new GPUProgram();
-    objectGPUProg->initFromFile( "asteroids.vert", "asteroids.frag", "asteroids" );
+        start();
 
-    start();
+        state = BEFORE_GAME;
+    }
 
-    state = BEFORE_GAME;
-  }
+    void start(bool clean = true);
+    void togglePause();
+    void updateState(float elapsedTime);
+    void draw();
+    void gameOver(float elapsedTime);
 
-  void start();
-  void togglePause();
-  void updateState( float elapsedTime );
-  void draw();
-  void gameOver();
-
-  void shipFires() {
-    if (state == RUNNING)
-      shells.push_back( ship->fireShell() );
-  }
+    void shipFires() {
+        if (state == RUNNING) shells.push_back(ship->fireShell());
+    }
 };
-
 
 #endif

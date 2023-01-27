@@ -9,9 +9,7 @@
 #include "ship.h"
 #include "strokefont.h"
 
-void World::start()
-
-{
+void World::start(bool clean) {
     // Create a ship at the centre of the world
 
     ship = new Ship(0.5 * (worldMin + worldMax));
@@ -21,20 +19,35 @@ void World::start()
     // Pick a random position at least 20% away from the origin (which
     // is where the ship will be).
 
-    asteroids.clear();
     shells.clear();
 
-    for (int i = 0; i < NUM_INITIAL_ASTEROIDS; i++) {
-        vec3 pos;
-        do {
-            pos = vec3(randIn01(), randIn01(), 0);
-        } while ((pos - vec3(0.5, 0.5, 0)).length() < 0.20);
+    if (clean) {
+        // if this is a new game, we should reset the asteroids
+        asteroids.clear();
 
-        asteroids.push_back(new Asteroid(pos % (worldMax - worldMin) + worldMin));
+        for (int i = 0; i < NUM_INITIAL_ASTEROIDS; i++) {
+            vec3 pos;
+            do {
+                pos = vec3(randIn01(), randIn01(), 0);
+            } while ((pos - vec3(0.5, 0.5, 0)).length() < 0.20);
+
+            asteroids.push_back(new Asteroid(pos % (worldMax - worldMin) + worldMin));
+        }
+    } else {
+        // if this is a new "life" of the same game, we should only reset the ship, but keep the asteroids
+
+        // we reset the positions of the existing asteroids to ensure the user doesn't die
+        // immediately upon respawning
+        for (int i = 0; i < asteroids.size(); i++) {
+            vec3 pos;
+            do {
+                pos = vec3(randIn01(), randIn01(), 0);
+            } while ((pos - vec3(0.5, 0.5, 0)).length() < 0.20);
+            asteroids[i]->position = pos % (worldMax - worldMin) + worldMin;
+        }
     }
 
     // Increase asteroid speed in later rounds
-
     for (unsigned int i = 0; i < asteroids.size(); i++) {
         asteroids[i]->velocity = ((1 + round) * ASTEROID_SPEED_ROUND_FACTOR) * asteroids[i]->velocity;
         asteroids[i]->angularVelocity = ((1 + round) * ASTEROID_SPEED_ROUND_FACTOR) * asteroids[i]->angularVelocity;
@@ -72,7 +85,19 @@ void World::updateState(float elapsedTime)
 
     for (unsigned int i = 0; i < asteroids.size(); i++) {
         asteroids[i]->updatePose(elapsedTime);
-        if (state == RUNNING && ship->intersects(*asteroids[i])) gameOver();
+
+        if (state == RUNNING && ship->intersects(*asteroids[i])) {
+            // decrement "lives" count
+            lives--;
+
+            // if there are no lives left, the game is over
+            // else, we reset the game
+            if (lives == 0) {
+                gameOver(elapsedTime);
+            } else {
+                start(false);
+            }
+        }
     }
 
     // Update the shells (check for asteroid collisions)
@@ -119,7 +144,7 @@ void World::updateState(float elapsedTime)
             for (unsigned int j = 0; j < asteroids.size(); j++) {
                 // if asteroid intersects with segment path
                 if (asteroids[j]->intersects(path)) {
-                                        // update global score
+                    // update global score
                     score += asteroids[j]->scoreValue;
 
                     if (asteroids[j]->scaleFactor * ASTEROID_SCALE_FACTOR_REDUCTION >= MIN_ASTEROID_SCALE_FACTOR) {
@@ -129,8 +154,8 @@ void World::updateState(float elapsedTime)
 
                         sub1->mass = asteroids[j]->mass / 2;
                         sub2->mass = asteroids[j]->mass / 2;
-                        sub1->scoreValue = asteroids[j]->scoreValue / 2;
-                        sub2->scoreValue = asteroids[j]->scoreValue / 2;
+                        sub1->scoreValue = asteroids[j]->scoreValue * 2;
+                        sub2->scoreValue = asteroids[j]->scoreValue * 2;
                         sub1->scaleFactor = asteroids[j]->scaleFactor / 2;
                         sub2->scaleFactor = asteroids[j]->scaleFactor / 2;
 
@@ -191,12 +216,18 @@ void World::draw()
 
     } else {
         // draw score
-
         stringstream ss;
         ss.setf(ios::fixed, ios::floatfield);
         ss.precision(1);
         ss << "SCORE " << score;
         strokeFont->drawStrokeString(ss.str(), -0.95, 0.75, 0.06, 0, LEFT);
+
+        // draw lives
+        stringstream livesStream;
+        livesStream.setf(ios::fixed, ios::floatfield);
+        livesStream.precision(1);
+        livesStream << "LIVES " << lives;
+        strokeFont->drawStrokeString(livesStream.str(), -0.95, 0.65, 0.06, 0, LEFT);
 
         if (state == AFTER_GAME) {
             // Draw "game over" message
@@ -207,10 +238,15 @@ void World::draw()
     }
 }
 
-void World::gameOver()
+void World::gameOver(float elapsedTime)
 
 {
     state = AFTER_GAME;
+
+    // funky ship animation for when the game is over
+    ship->velocity = -0.25 * ship->velocity;
+    ship->angularVelocity = SHIP_SPIN_OUT * vec3(0, 0, 1);
+    ship->updatePose(elapsedTime);
 }
 
 void World::togglePause()
