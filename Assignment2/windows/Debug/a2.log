@@ -1,0 +1,12 @@
+﻿  axes.cpp
+  fg_stroke.cpp
+  gbuffer.cpp
+  gpuProgram.cpp
+  linalg.cpp
+  renderer.cpp
+  shader.cpp
+  strokefont.cpp
+  wavefront.cpp
+  Generating Code...
+  glad.c
+  a2.vcxproj -> C:\Users\navsa\Downloads\a2\windows\Debug\a2.exe
