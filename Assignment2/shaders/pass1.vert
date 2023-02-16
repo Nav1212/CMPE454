@@ -37,6 +37,6 @@ void main()
 
 
   vcsPosition = vec3(OCS_to_VCS*vec4(vertPosition,1.0f));
- vcsNormal =  vec3( OCS_to_VCS *vec4( vertNormal, 0.0 ) );
+ vcsNormal =  ( OCS_to_VCS *vec4( vertNormal, 0.0 ) ).xyz;
   depth = 0.5 * ((ccsPosition.z/ ccsPosition.w )+ 1.0); 
 }
