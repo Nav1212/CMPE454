@@ -27,5 +27,5 @@ void main()
   //
   // Compute texture coords
   
-  texCoords = vec2( 0.0, 0.0 );
+  texCoords = vec2((( screenPos.x+1.0)/2.0, screenPos.y+1.0)/2.0 );
 }

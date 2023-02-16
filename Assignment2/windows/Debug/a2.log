@@ -9,4 +9,5 @@
   wavefront.cpp
   Generating Code...
   glad.c
-  a2.vcxproj -> C:\Users\navsa\Downloads\a2\windows\Debug\a2.exe
+  LINK : C:\Users\navsa\Documents\GitHub\CMPE454\Assignment2\windows\Debug\a2.exe not found or not built by the last incremental link; performing full link
+  a2.vcxproj -> C:\Users\navsa\Documents\GitHub\CMPE454\Assignment2\windows\Debug\a2.exe
