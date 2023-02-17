@@ -33,9 +33,6 @@ out vec4 fragColour;   // fragment's final colour
 void main() {
   // YOUR CODE HERE
 
-  // float dummy = texCoords.x;  // REMOVE THIS
-  // normalBuffer[]
-
   // discard fragment if it's a background fragement
   float depth = texture(depthBuffer, texCoords).z;
 

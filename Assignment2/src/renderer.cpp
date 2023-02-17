@@ -115,6 +115,53 @@ void Renderer::render( seq<wfModel *> &objs, mat4 &WCS_to_VCS, mat4 &VCS_to_CCS,
     //
     // CHANGED: Comment above reflects correct distribution of lengths
 
+    for (int i = 0; i < NUM_SAMPLE_OFFSETS; i++) {
+      // idea summary:
+      // generate coords in the range 
+      //       x in [-1, +1]
+      //       y in [-1, +1]
+      //       z in [0,  +1]
+      // if (x^2 + y^2 + z^2) > 1: reject!
+
+      // random direction in +z hemisphere
+      // vec3 dir = vec3(
+      //   2.0 * rand(vec2(float(i), 0.0)) - 1.0,
+      //   2.0 * rand(vec2(float(i), 1.0)) - 1.0,
+      //   abs(2.0 * rand(vec2(float(i), 2.0)) - 1.0)
+      // )
+
+      // random direction in +z hemisphere
+      vec3 dir = vec3(
+        2.0f * randIn01() - 1.0f,
+        2.0f * randIn01() - 1.0f,
+        abs(2.0f * randIn01() - 1.0f)
+      );
+      dir = dir.normalize();
+
+      // random length in range [0.1, 1]
+      float len;
+      vec2 sample;
+
+      do {
+        sample = vec2(randIn01(), randIn01());
+        len = 0.1f + (1.0f - 0.1f) * sample.x;
+      } while (sample.y > len);
+
+      // generate offset
+      vec3 offset = vec3(dir.x * len, dir.y * len, dir.z * len);
+
+      // TODO: is this generating the correct ranges of values? 
+      //     ie.
+      //       x in [-1, +1]
+      //       y in [-1, +1]
+      //       z in [0,  +1]
+      
+      // cout << offset.x << ", " << offset.y << ", " << offset.z << endl;
+
+      // append to array
+      sampleOffsets[i] = offset;
+    }
+
     firstTime = false;
   }
 
