@@ -8,26 +8,21 @@ precision mediump float;
 uniform mat4 OCS_to_VCS;
 uniform mat4 OCS_to_CCS;
 
-
 // inputs
 
-layout (location=0) in vec3 vertPosition; // OCS vertex position from OpenGL
-layout (location=1) in vec3 vertNormal;   // OCS vertex normal
-
+layout(location = 0) in vec3 vertPosition; // OCS vertex position from OpenGL
+layout(location = 1) in vec3 vertNormal;   // OCS vertex normal
 
 // outputs
 
-out vec3  vcsPosition;
-out vec3  vcsNormal;
+out vec3 vcsPosition;
+out vec3 vcsNormal;
 out float depth;		// depth in [0,1]
 
-
-void main()
-
-{
+void main() {
   // position in CCS
 
-  vec4 ccsPosition = OCS_to_CCS * vec4( vertPosition, 1.0 );
+  vec4 ccsPosition = OCS_to_CCS * vec4(vertPosition, 1.0);
 
   gl_Position = ccsPosition;
 
@@ -35,8 +30,7 @@ void main()
   //
   // YOUR CODE HERE
 
-
-  vcsPosition = vec3(OCS_to_VCS*vec4(vertPosition,1.0f));
- vcsNormal =  ( OCS_to_VCS *vec4( vertNormal, 0.0 ) ).xyz;
-  depth = 0.5 * ((ccsPosition.z/ ccsPosition.w )+ 1.0); 
+  vcsPosition = vec3(OCS_to_VCS * vec4(vertPosition, 1.0f));
+  vcsNormal = (OCS_to_VCS * vec4(vertNormal, 0.0)).xyz;
+  depth = 0.5 * ((ccsPosition.z / ccsPosition.w) + 1.0);
 }

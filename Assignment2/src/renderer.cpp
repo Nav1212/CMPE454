@@ -43,10 +43,22 @@ void Renderer::render( seq<wfModel *> &objs, mat4 &WCS_to_VCS, mat4 &VCS_to_CCS,
   
   gbuffer->setDrawBuffers( 3, activeDrawBuffers );
 
-  // Draw objects
+  // Clear buffers
 
-  glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+  glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT ); // OpenGL's depth buffer, not the fragment shader's 'depthBuffer' texture!
   glEnable( GL_DEPTH_TEST );
+
+  // CHANGED: Set everything in the fragment shader's depth buffer to
+  // 1.0.  This buffer is different than OpenGL's depth buffer, so
+  // does not get cleared otherwise.  Not clearing the fragment
+  // shader's depth buffer might lead to depth values in the
+  // background pixels that are different than 1.0.  (But this is
+  // likely implementation-dependant.)
+  
+  float maxDepth = 1.0;
+  glClearBufferfv( GL_COLOR, 2, &maxDepth ); // 2 = 'depthBuffer'
+
+  // Draw objects
 
   for (int i=0; i<objs.size(); i++) {
 
@@ -98,9 +110,10 @@ void Renderer::render( seq<wfModel *> &objs, mat4 &WCS_to_VCS, mat4 &VCS_to_CCS,
     // Generate NUM_SAMPLE_OFFSETS sample offsets and store them in
     // the sampleOffsets array.  Each should be a random vector in the
     // +z hemisphere, with a uniform distribution of directions and a
-    // distribution of lengths in [0.1,1] such that the probabilty
-    // densities of lengths increase linearly with length.
-
+    // distribution of lengths in [0.1,1] such that there are more offsets
+    // closer to the origin than farther from the origin.
+    //
+    // CHANGED: Comment above reflects correct distribution of lengths
 
     firstTime = false;
   }
@@ -168,6 +181,7 @@ void Renderer::render( seq<wfModel *> &objs, mat4 &WCS_to_VCS, mat4 &VCS_to_CCS,
   // Set fragment shader uniforms
 
   pass3Prog->setInt(   "occlusionBuffer", BASE_GBUFFER_TEXTURE_UNIT + 3 ); // sampler2D of occlusion factors
+  pass3Prog->setInt(   "depthBuffer",     BASE_GBUFFER_TEXTURE_UNIT + 2 ); // CHANGED: ADDED TO ALLOW ACCESS TO DEPTH BUFFER IN pass3.frag
   pass3Prog->setFloat( "blurRadius",      blurRadius );                    // radius of blurring kernel
   pass3Prog->setVec2(  "texelSize",       vec2( 1.0/(float)gbuffer->fbWidth, 1.0/(float)gbuffer->fbHeight ) ); // distance between [0,1]x[0,1] texCoords of adjacent texels
 

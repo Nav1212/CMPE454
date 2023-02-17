@@ -27,5 +27,6 @@ void main()
   //
   // Compute texture coords
   
-  texCoords = vec2( 0.0, 0.0 );
+  // copying from pass4.vert
+  texCoords = screenPos.xy * 0.5 + 0.5;
 }
