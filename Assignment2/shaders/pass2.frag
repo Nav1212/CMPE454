@@ -34,6 +34,20 @@ void main() {
   //
   // YOUR CODE HERE
 
+  // float dum = texCoords.x;
+
+  // occlusionFactor = 0.5;
+  // return;
+
+  // discard fragment if it's a background fragement
+  float storedDepth = texture(depthBuffer, texCoords).r;
+  storedDepth = storedDepth * 2.0 - 1.0;
+  float d = gl_FragCoord.z * 0.5 + 0.5;
+
+  if(d <= storedDepth) {
+    discard;
+  }
+
   // normal
   // vec3 N = normalize(texture(normalBuffer, texCoords).xyz * 2.0 - 1.0);
   vec3 N = texture(normalBuffer, texCoords).xyz;
@@ -70,7 +84,7 @@ void main() {
     // float surfaceDepth = texture(depthBuffer, texCoords).r;
     float surfaceDepth = texture(depthBuffer, texCoords + offset.xy).r;
 
-    // Determine the depth of the surface that is above or below the sample point, as seen from the viewpoint.
+    // put sample depth in the range [0, 1]
     float sampleDepth = (Pprime.z + 1) / 2;
 
     // sample above surface (+delta), or sample below surface (-delta)

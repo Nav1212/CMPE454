@@ -34,9 +34,11 @@ void main() {
   // YOUR CODE HERE
 
   // discard fragment if it's a background fragement
-  float depth = texture(depthBuffer, texCoords).z;
+  float storedDepth = texture(depthBuffer, texCoords).r;
+  storedDepth = storedDepth * 2.0 - 1.0;
+  float d = gl_FragCoord.z * 0.5 + 0.5;
 
-  if(gl_FragCoord.z <= depth) {
+  if(d <= storedDepth) {
     discard;
   }
 
