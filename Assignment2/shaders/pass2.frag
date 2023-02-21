@@ -34,11 +34,6 @@ void main() {
   //
   // YOUR CODE HERE
 
-  // float dum = texCoords.x;
-
-  // occlusionFactor = 0.5;
-  // return;
-
   // discard fragment if it's a background fragement
   float storedDepth = texture(depthBuffer, texCoords).r;
   storedDepth = storedDepth * 2.0 - 1.0;
@@ -49,11 +44,10 @@ void main() {
   }
 
   // normal
-  // vec3 N = normalize(texture(normalBuffer, texCoords).xyz * 2.0 - 1.0);
-  vec3 N = texture(normalBuffer, texCoords).xyz;
+  vec3 N = texture(normalBuffer, texCoords).xyz; // in [0,1]
 
   // position in sample space
-  vec3 Pss = texture(positionBuffer, texCoords).xyz;
+  vec3 P = texture(positionBuffer, texCoords).xyz; // texture [0,1]x[0,1] of position in VCS
 
   // building perpendicular x,y
   vec3 X = abs(N.x) > 0.5 ? vec3(0, 1, 0) : vec3(1, 0, 0);
@@ -64,37 +58,36 @@ void main() {
   // build rotation matrix
   mat3 R = mat3(X, Y, N);
 
-  // accumulator
-  float occlusion = 0.0;
+  // keep track of how many samples are above their respective surfaces
+  int samplesAboveSurface = 0;
 
   // loop over sample offsets
   for(int i = 0; i < numSampleOffsetsToUse; i++) {
 
     // compute the vcs pos of the offset from the fragment's vcs pos
-
-    // calculate sample
     vec3 offset = offsetScale * (R * sampleOffsets[i]);
-    // vec3 offset = offsetScale * (R * vec3(sampleOffsets[i].xy, 0.0));
 
     // move P into depth buffer coord system
-    vec4 Pprime = VCS_to_CCS * vec4(Pss + offset, 1.0f);
-    Pprime /= Pprime.w;
+    vec3 Pprime3 = P + offset;
+    vec4 Pprime = VCS_to_CCS * vec4(Pprime3, 1.0f); // Pprime VCS -> CCS
+    Pprime /= Pprime.w; // Pprime CSS -> NDCS
 
-    // calculate surface depth
-    // float surfaceDepth = texture(depthBuffer, texCoords).r;
-    float surfaceDepth = texture(depthBuffer, texCoords + offset.xy).r;
+    // Pprim between [0, 1]
+    Pprime *= 0.5;
+    Pprime += 0.5;
 
-    // put sample depth in the range [0, 1]
-    float sampleDepth = (Pprime.z + 1) / 2;
+    // depth of Pprime is its 'z' 
+    float sampleDepth = Pprime.z;
 
-    // sample above surface (+delta), or sample below surface (-delta)
-    float delta = sampleDepth - surfaceDepth;
+    // get the value in the depth buffer at Pprime's x and y coords
+    float surfaceDepth = texture(depthBuffer, Pprime.xy).r;
 
-    // update occlusion accumulator
-    occlusion += delta < 0.0 ? 1.0 : 0.0;
-
+    // is this sample above its surface?
+    if(sampleDepth < surfaceDepth) {
+      samplesAboveSurface++;
+    }
   }
 
-  // occlusionFactor = 0.5;
-  occlusionFactor = occlusion / float(numSampleOffsetsToUse);
+  // divide to get occlusion factor for this fragment
+  occlusionFactor = float(samplesAboveSurface) / float(numSampleOffsetsToUse);
 }

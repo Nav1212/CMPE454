@@ -23,11 +23,6 @@ void main() {
   //
   // YOUR CODE HERE
 
-  // float dum = texCoords.x;
-
-  // blurredOcclusionFactor = 0.75;
-  // return;
-
   // discard fragment if it's a background fragement
   float storedDepth = texture(depthBuffer, texCoords).r;
   storedDepth = storedDepth * 2.0 - 1.0;
@@ -37,34 +32,37 @@ void main() {
     discard;
   }
 
-  // square neighbourhood dimensions
-  int squareSize = int(2.0 * blurRadius + 1.0);
-
+  int blurRadiusInt = int(floor(blurRadius));
   float occlustionSum = 0.0;
-  float numFactors = 0.0;
 
-  // x
-  for(int x = -squareSize; x <= squareSize; ++x) {
-    vec2 offset = vec2(float(x), 0.0) * texelSize;
-    occlustionSum += texture(occlusionBuffer, texCoords + offset).r;
-    numFactors++;
+  // here, we need to loop through the texels that surround our fragment
+  // 
+  // i.e. blurRadiusInt = 1
+  // 
+  //  [ ] [ ] [ ]  
+  //  [ ] [x] [ ]  3
+  //  [ ] [ ] [ ]
+  //       3
+  // we loop through each texel ([ ])
+  // starting with top left, which is at (-blurRadiusInt, -blurRadiusInt) * texelSize
+  // and so...
+  //   
+
+  // row (x)
+  for(int row = -blurRadiusInt; row <= blurRadiusInt; row++) {
+    // col (y)
+    for(int col = -blurRadiusInt; col <= blurRadiusInt; col++) {
+      vec2 offset = vec2(float(row), float(col)) * texelSize;
+
+      // add occlusion factor at this texel
+      occlustionSum += texture(occlusionBuffer, texCoords + offset).r;
+    }
   }
 
-  // y
-  for(int y = -squareSize; y <= squareSize; ++y) {
-    vec2 offset = vec2(0.0, float(y)) * texelSize;
-    occlustionSum += texture(occlusionBuffer, texCoords + offset).r;
-    numFactors++;
-  }
-
-  // Compute the average occlusion factor for the window
-  // float avgOcclusion = weight * occlustionSum;
-  // float avgOcclusion = occlustionSum / numFactors;
+  // the number of texels we grab occ. values from is defined as:
+  int blurDimension = int(2.0 * blurRadius + 1.0);
+  float numTexelsTotal = float(blurDimension * blurDimension);
 
   // return average occlusion factor
-  // blurredOcclusionFactor = occlustionSum / numFactors;
-  blurredOcclusionFactor = occlustionSum / float(squareSize * squareSize);
-  // blurredOcclusionFactor = weight * occlustionSum;
-
-  // blurredOcclusionFactor = 0.75;
+  blurredOcclusionFactor = occlustionSum / numTexelsTotal;
 }
