@@ -43,8 +43,7 @@ void main() {
   }
 
   // computing Phong illumination
-
-  vec3 N = normalize(texture(normalBuffer, texCoords).xyz * 2.0 - 1.0);
+  vec3 N = normalize(texture(normalBuffer, texCoords).xyz);
 
   // diffuse
   float NdotL = max(dot(N, L), 0.0);
@@ -52,15 +51,13 @@ void main() {
 
   // specular
   vec3 R = 2 * NdotL * N - L;
-  // vec3 Vpos = texture(positionBuffer, texCoords).xyz * 2.0 - 1.0
   vec3 P = texture(positionBuffer, texCoords).xyz * 2.0 - 1.0;
   vec3 V = normalize(-P);
   float RdotV = max(dot(R, V), 0.0);
-  float n = shininess;
-  vec3 specular = ks * pow(RdotV, n) * Iin;
+  vec3 specular = ks * pow(RdotV, shininess) * Iin;
 
   // ambient 
-  float ka = 1.0; // TODO: what is this value?
+  float ka = 1.0;
   vec3 ambient = ka * Ia;
 
   // sum the lighting components

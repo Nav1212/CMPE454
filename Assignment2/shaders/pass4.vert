@@ -23,5 +23,4 @@ void main() {
   // Compute texture coords
 
   texCoords = screenPos.xy * 0.5 + 0.5;
-
 }
