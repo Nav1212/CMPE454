@@ -1,0 +1,117 @@
+CISC/CMPE 454 Assignment 2
+
+Due Friday Mar 24 at noon
+
+You will implement parts of a physical simulator.
+
+Step 0
+
+  In Linux or MacOS, go into the 'linux' or 'macos' directory, compile
+  the code with 'make', then run it from the command line as
+
+    ./anim ../tests/test1.txt
+
+  In Windows Visual Studio, double-click on the a2.vcxproj file, check
+  that the command-line arguments in the Properties are
+
+    ..\tests\test1.txt
+
+  and then compile and run the code.
+
+  NOTES:
+
+    - If you do not include a command-line argument, the program will
+      generate random spheres.
+
+    - The last spheres generated are recorded in ../tests/lastSpheres.txt,
+      which you can use for testing if you encounter an error in the
+      randomly-generated spheres.
+
+    - We will test on different inputs.
+
+  You can drag the mouse with the left button down to move the
+  viewpoint.  Dragging up/down with the *right* mouse button zooms
+  in and out.
+
+  Pressing 'p' pauses or unpauses.
+  
+  Pressing 'c' shows the line between each sphere and its
+  'contactPoint', which will be useful for your debugging.  Between
+  spheres the line goes only half-way to the contact point on the
+  other sphere.
+
+  Pressing '+' or '-' increases or decreases the simulation speed,
+  which starts at half of real time.
+
+Step 1
+
+  [1 mark] Implement pointToEdgeDistance() in linalg.cpp according to
+  the comments above that function.
+
+Step 2
+
+  [3 marks] Implement Sphere::distToRectangle() according to the
+  comments in that function.
+
+  At this point you should test your code by running it on test1.txt.
+  Press 'c' to see the closest point to the sphere, which should be
+  the bottom of the pit.
+
+  Then move the sphere (in test1.txt) so that it is close to, but does
+  not touch, one of the pit edges.  Press 'c' and verify that the
+  closest point is on the edge.
+
+  Then move the sphere outside one of the pit corner and test again
+  that the closest point is now that corner.
+
+  Get this code tested and working before proceeding.
+
+Step 3
+
+  [2 marks] Implement World::integrate() in world.cpp according to the
+  comments in that function.
+
+  Now test this with the original test1.txt to see that the sphere
+  accelerates downward.
+
+Step 4
+
+  [3 marks] EFFICIENTY and CLEANLY implement the binary search in
+  World::updateStateByDeltaT() according to the comments in that
+  function.  At least one mark is for clean and efficient code.
+
+Step 5
+
+  [0 marks] Read and understand findCollisions().
+
+Step 6.
+
+  Implement sphere/sphere [3 marks] and sphere/rectangle [2 marks]
+  collision resolution in World::resolveCollision() according to the
+  comments in that function.
+
+  Do sphere/rectangle collision first and test it with the original
+  test1.txt.  Once that is working, move the sphere so that it hits an
+  edge of the pit and test that the collision causes the sphere to
+  move in the correct direction.
+
+  Finally, implement sphere/sphere collision and test it with
+  test2.txt.
+
+  Then try several tests with many spheres by setting
+  NUM_SPHERES_TO_GEN and not providing any command-line arguments.
+
+To Hand In
+
+  Make a directory called 'a3'.  In that directory, put
+
+    - a README.txt file with your name(s), student number(s), and netID(s)
+
+    - All of the *.h and *.cpp files, even if you did not modify them.
+
+    - DO NOT INCLUDE ANY OTHER FILES.  YOU WILL LOSE MARKS OTHERWISE.
+
+  Create a ZIP archive, named a3.zip, of the a3 directory and upload
+  it to OnQ.
+
+  IN GROUPS OF TWO, ONLY ONE PERSON SHOULD UPLOAD THE ASSIGNMENT.

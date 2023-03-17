@@ -1,0 +1,6 @@
+﻿  sphere.cpp
+C:\Users\navsa\Documents\GitHub\CMPE454\a3\src\sphere.cpp(74): warning C4700: uninitialized local variable 'distXplus' used
+C:\Users\navsa\Documents\GitHub\CMPE454\a3\src\sphere.cpp(77): warning C4700: uninitialized local variable 'distYplus' used
+C:\Users\navsa\Documents\GitHub\CMPE454\a3\src\sphere.cpp(82): warning C4700: uninitialized local variable 'distXminus' used
+C:\Users\navsa\Documents\GitHub\CMPE454\a3\src\sphere.cpp(87): warning C4700: uninitialized local variable 'distYminus' used
+  a3.vcxproj -> C:\Users\navsa\Documents\GitHub\CMPE454\a3\windows\Debug\a3.exe
