@@ -67,6 +67,22 @@ float Sphere::distToRectangle( Rectangle &rectangle, vec3 *closestPoint )
 
 
   // [YOUR CODE HERE]
+  vec3 XplusTail(rectangle.xDim / 2, -rectangle.yDim / 2, 0);
+  vec3 XplusHead(rectangle.xDim / 2, rectangle.yDim / 2, 0);
+
+  vec3 XminusTail(-rectangle.xDim / 2, -rectangle.yDim / 2, 0);
+  vec3 XminusHead(-rectangle.xDim / 2, rectangle.yDim / 2, 0);
+
+  vec3 YplusTail(-rectangle.xDim / 2, rectangle.yDim / 2, 0);
+  vec3 YplusHead(rectangle.xDim / 2, rectangle.yDim / 2, 0);
+
+  vec3 YminusTail(-rectangle.xDim / 2, -rectangle.yDim / 2, 0);
+  vec3 YminusHead(rectangle.xDim / 2, -rectangle.yDim / 2, 0);
+
+  distXplus = pointToEdgeDistance(pointXplus, XplusTail, XplusHead, &pointXplus);
+distXminus = pointToEdgeDistance(pointYplus, XminusTail, XminusHead, &pointXminus);
+distYplus = pointToEdgeDistance(pointXminus, YplusTail, YplusHead, &pointYplus);
+distYminus = pointToEdgeDistance(pointYminus, YminusTail, YminusHead, &pointYminus);
 
   
   // Pick the minimum of the edge distances
