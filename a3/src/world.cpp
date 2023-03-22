@@ -423,7 +423,7 @@ bool World::findCollisions( Sphere **collisionSphere, Object **collisionObject )
 
 	float relativeVelocitySign = (spheres[j].state.v - spheres[i].state.v) * centreToCentre;
 
-	if (relativeVelocitySign < 0) { // < 0 if coming together, > 0 is moving apart
+	if (relativeVelocitySign < 0 || true) { // < 0 if coming together, > 0 is moving apart
 
 	  if (dist < minDist) {
 	    minDist = dist;
@@ -451,7 +451,7 @@ bool World::findCollisions( Sphere **collisionSphere, Object **collisionObject )
 
 	float relativeVelocitySign = (((spheres[i].state.x - rectangles[j].centre) * rectangles[j].normal) * rectangles[j].normal) * spheres[i].state.v;
 
-	if (relativeVelocitySign < 0) { // < 0 if coming together, > 0 is moving apart
+	if (relativeVelocitySign < 0 || true) { // < 0 if coming together, > 0 is moving apart
 
 	  if (dist < minDist) {
 	    minDist = dist;
