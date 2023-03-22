@@ -1,0 +1,128 @@
+CISC/CMPE 454 Assignment 1 - Asteroids
+
+Due Friday, January 27 at noon
+
+You will implement parts of the Asteroids game by extending the
+skeleton code provided in this directory.  You may work individually
+or in groups of two.  Graduate students must work individually.
+
+Compile the code
+----------------
+
+On Linux:
+
+  Go to the linux directory.
+  Execute make
+
+  If this fails, you may need to install the glfw library like this:
+
+    sudo apt-get install libglfw3-dev
+
+On Windows with Visual Studio:
+
+  Click on a1.vcxproj
+  Press F7.
+
+On Mac:
+
+  Go to the macos directory.
+  Execute make
+
+  If this fails, you may need to install gcc and glfw by following the
+  instructions in the README.txt file in the macos directory.
+
+Run the code
+------------
+
+Run the code and verify that a window pops up with the Asteroids
+world.  On Linux and MacOS this is done by typing ./asteroids in the
+terminal window.
+
+Read the code
+-------------
+
+Read *all* of the code to get a general understanding of it.  This
+should take several hours and will help a great deal later on.
+
+Modify the code
+---------------
+
+All modifications are done in places with a comment saying "YOUR CODE HERE":
+
+1. Modify Object::modelToWorldTransform() to return the 4x4 transform
+   that maps object points to the world coordinate system.  An Object
+   has a position, orientation, and a scale factor, all of which must
+   be incorporated into the model-to-world transform.  [1 mark]
+
+2. Modify Object::setupVAO() to set up the VAO that defines the object
+   segments.  [1 mark]
+
+3. Modify Object::draw() to draw the object in the correct position
+   and orientation.  You'll first need to find the model-to-view
+   transform.  [1 mark]
+
+   At this point, you can run the program and see the asteroids and
+   ship in their initial positions.
+
+4. Modify Ship::addThrust() to change the velocity.  Use
+   SHIP_THRUST_ACCEL, deltaT, and the current ship orientation.
+   Modify Ship::rotateCW() to rotate the ship clockwise.  [1 mark]
+
+   At this point, you should be able to move the ship around.
+
+5. Modify Segment::intersects() to determine whether two segments
+   intersect.  [1 mark]
+
+   At this point, ship/asteroid collisions should be detected.
+
+6. Modify Ship::fireShell() to set the initial state of a shell that
+   is fired from the nose of the ship  [1 mark]
+
+7. Modify World::updateState() to check for shell/asteroid collisions and
+   to update the asteroids upon any such collisions.  [3 marks] 
+
+8. Optionally, implement additional features.  Up to [3 bonus marks]
+   can be awarded for additional features.  You could have 3D
+   asteroids (e.g. spinning) but still play on a flat plane.  Or you
+   could implement a flying saucer as in the original game.  Or have a
+   shield.  Or have a number of lives that are shown on the screen and
+   decremented.  There are lots of Asteroid variants on the web to
+   give you ideas.  Only the more difficult features will get the
+   maximum of 3 bonus marks; simpler features will get a maximum of 1
+   or 2 bonus marks.
+
+
+Submit the code
+---------------
+
+Create a NEW DIRECTORY called 'a1'.
+
+COPY ONLY THESE FILES into that directory:
+
+   *.cpp
+   *.h
+   README.txt   
+
+The README.txt must contain the names, emails, netIDs of each person,
+and *may* contain comments you have for the TA, such as a description
+of extra modifications you made.
+
+Do not include other files and directories.  In particular, DO NOT
+INCLUDE THESE: .vs A1.txt a1.sln a1.vcxproj a1.vcxproj.filters glad
+include lib32 lib64 libglfw.so ll resource.h .
+
+If you include ANY other files, including the ones listed directly
+above, you will LOSE 1 MARK!  If your zip archive does not contain
+everything in a directory called 'a1', you will LOSE 1 MARK!  This is
+because the TAs use scripts to extract your assignment and mark it,
+and deviations from the instructions above cause more work for the
+TAs.
+
+Your archive should be under 500 KB.  If it's larger, you've likely
+included extra files, especially a Debug or .vs directory inside the
+windows directory.
+
+Create a zip archive of that directory, named 'a1.zip'.  If you use a
+different name, you WILL LOSE 1 MARK!
+
+Submit the zip archive on OnQ.
