@@ -1,0 +1,186 @@
+CISC/CMPE 454 Assignment 2
+
+Due Friday Feb 17 at noon (extended to Tuesday Feb 21 at noon if you wish)
+
+Your task is to do screen-space ambient occlusion in a multipass
+shader.  The first pass stores information.  The second pass computes
+the occlusion factor at each pixel.  The third pass smooths the
+occlusion factors.  The final pass renders the object with ambient
+occlusion.
+
+ - In pass 1, the objects are rendered from the viewpoint.  Each
+   fragment is provided with its VCS position, VCS normal, and CCS
+   depth reparameterized to the range [0,1].  These three items are
+   stored in g-buffers.
+
+ - In pass 2, the fragment shader is passed the coordinates of its
+   position on the [0,1]x[0,1] screen.  These coordinates are used to
+   look up the stored values from the g-buffers.  Using the position,
+   normal, and depth, the fragment shader samples around the position
+   using "sample offsets" provided as a uniform.  Each sample offset
+   is taken to be in a coordinate system in which the z axis of the
+   coordinate system aligns with the fragment's normal.  The sample
+   offset is transformed into the VCS, added to the fragment position,
+   and then transformed to the CCS to find its CCS depth, but
+   reparameterized into [0,1].  The sample is under a surface if and
+   only if the sample's depth is greater than the depth stored in the
+   depth g-buffer at the sample position.  The occlusion factor is the
+   number of samples above a surface divided by the total number of
+   samples, and is stored in a g-buffer.
+
+ - In pass 3, the fragment shader is passed the coordinates of its
+   position on the [0,1]x[0,1] screen.  The fragment shader averages
+   the occlusion values within a SQUARE NEIGHBOURHOOD centred at its
+   position.  The neighbourhood has a given radius and dimensions
+   (2*radius+1) x (2*radius+1).  The averaged occlusion factor is
+   stored in a g-buffer.
+
+ - In pass 4, the fragment shader reads the VCS position, VCS normal,
+   and averaged (i.e. blurred) occlusion factor from the g-buffers.
+   The fragment shader computes Phong illumination and outputs the
+   resulting colour, perhaps multiplied by the blurred occlusion factor.
+
+You will need to edit only the renderer.cpp file and the eight vertex
+and fragment shaders.  Do not edit anything else.
+
+Step 0
+
+  In Linux or MacOS, go into the 'linux' or 'macos' directory, compile
+  the code with 'make', then run it from the command line as
+
+    ./shader ../data/teapot.obj
+
+  In Windows Visual Studio, double-click on the a2.vcxproj file, check
+  that the command-line arguments in the Properties are
+
+    ..\data\teapot.obj
+
+  and then compile and run the code.
+
+  Note that you can include multiple objects in the command-line.
+
+  The program should show a window with three panels containing black,
+  blue, and grey versions of your scene.
+
+  You can drag the mouse with the left button down to move the
+  viewpoint.  Dragging up/down with the *right* mouse button zooms in
+  and out.
+
+Important Note
+
+  Get some output on the screen first, then incrementally change the
+  code and test each change by drawing the intermediate results to the
+  screen.
+
+  For example, first get the pass 1 vertex shader working so that the
+  position, normal, and depth g-buffers are filled with data.  Then go
+  to the pass 4 fragment shader to read the appropriate normal from
+  the normal g-buffer and output *just* *the* *normal*.  If that
+  output after pass 4 looks the same as the upper-right image after
+  pass 1, you've done it correctly.  Then do the same to copy the
+  positions, then the depths.  This verifies that you're reading all
+  of the g-buffer data correctly at the right coordinates.  Finally,
+  use that data to do the Phong calcuation and output the colour from
+  that calculation.  (But continue to follow the same pattern of doing
+  very small, incremental steps: Do diffuse-only first, then do
+  specular-only, then do the combination.)
+  
+Pass 1
+
+  In the pass1 vertex shader, compute the VCS position, the VCS
+  normal, and the depth in [0,1].  These will be interpolated across
+  triangles and will be passed to the fragment shaders, which will
+  output them to g-buffers.
+
+  [1 mark] correct computations
+  
+  You do not have to modify pass1.frag, as it simply copies the values
+  into the g-buffers.
+
+  After this step, the "after pass 1" debugging output should show
+  colour-coded positions, normals, and depths.
+
+Pass 4
+
+  In the pass 4 vertex shader, compute the g-buffer texture
+  coordinates of the vertex from its screen position.  The vertices
+  are from the full-screen quad that is rendered in this pass.  Copy
+  the same texture coordinate computation to the pass 2 and pass 3
+  vertex shaders.
+
+  [1 mark] correct texture coordinate computation in vertex shader
+
+  In the pass 4 fragment shader:
+  
+  [1 mark] Read the data from the g-buffers.  Discard the fragment
+  *as* *soon* *as* *possible* if it's a background fragment.  (When
+  you work on the pass 2 and pass 3 shaders, do the same to discard
+  their fragments as soon as possible.)
+
+  [1 mark] Compute Phong illumination without using any conditionals.
+  No "if"s and no "(?:)" operators!
+
+  [1 mark] Output the Phong colour, multiplied by the blurred
+  occlusion factor if and only if the 'showOcclusion' uniform flag is
+  1.  You may use a "(?:)" operator for this if you wish.
+
+renderer.cpp
+
+  [2 marks] Generate random sample offsets according the comment in
+  the code.  Be sure to generate using the correct probability
+  distribution.
+
+Pass 2
+
+  In the pass 2 vertex shader, copy the texture coordinate computation
+  from the pass 4 vertex shader.
+  
+  [2 marks] In the pass 2 fragment shader, build a coordinate system
+  in which Z is the surface normal and X and Y are two vectors
+  perpendicular to Z and to each other.  From that, build a 3x3
+  rotation matrix, R, that transforms offsets from this <X,Y,Z>
+  coordinate system into the VCS.
+
+  For each of the 'numSampleOffsetsToUse' (use this uniform in your
+  code) sample offsets:
+
+    [1 mark] Compute the VCS position of the offset from the
+    fragment's VCS position, appropriately using the rotation matrix R
+    (computed in the step above) and the 'offsetScale' uniform to
+    transform and scale the offset vector.
+
+    [1 mark] Determine the depth of the surface that is above or below
+    the sample point, as seen from the viewpoint.
+
+    [1 mark] Determine the sample depth. Determine whether the sample
+    is above or below the surface.
+
+  [1 mark] Return an occlusion factor that is the fraction of the
+  sample points above their surface.
+
+Pass 3
+
+  In the pass 3 vertex shader, copy the texture coordinate computation
+  from the pass 4 vertex shader.
+  
+  [2 marks] Compute the average of the occlusion factors of the
+  (2*blurRadius+1) x (2*blurRadius+1) fragments in the square
+  neighbourhood centred at this fragment.  Use the 'blurRadius'
+  uniform.  Do this efficiently.
+
+To Hand In
+
+  Make a directory called 'a2'.  In that directory, put
+
+    - your EIGHT shader files
+
+    - your renderer.cpp file.  Do not put in any other *.cpp or *.h files.
+
+    - a README.txt file with your name(s), student number(s), and netID(s)
+
+    - DO NOT INCLUDE ANY OTHER FILES.  YOUR a2 DIRECTORY SHOULD
+      CONTAIN EXACTLY 10 FILES.  YOU WILL LOSE MARKS OTHERWISE.
+
+  Create a ZIP archive of the a2 directory and upload it to OnQ.
+
+  IN GROUPS OF TWO, ONLY ONE PERSON SHOULD UPLOAD THE ASSIGNMENT.

@@ -1,0 +1,13 @@
+﻿  axes.cpp
+  fg_stroke.cpp
+  gbuffer.cpp
+  gpuProgram.cpp
+  linalg.cpp
+  renderer.cpp
+  shader.cpp
+  strokefont.cpp
+  wavefront.cpp
+  Generating Code...
+  glad.c
+  LINK : C:\Users\navsa\Documents\GitHub\CMPE454\Assignment2\windows\Debug\a2.exe not found or not built by the last incremental link; performing full link
+  a2.vcxproj -> C:\Users\navsa\Documents\GitHub\CMPE454\Assignment2\windows\Debug\a2.exe
