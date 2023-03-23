@@ -509,26 +509,25 @@ void World::resolveCollision(Sphere *sphere, Object *otherObject)
         Sphere *sphere2 = dynamic_cast<Sphere *>(otherObject);
 
         // [YOUR CODE HERE: REPLACE THE CODE BELOW]
-
         // Find a normal to the tangent plane between the spheres
 
-        vec3 n = vec3(9999, 9999, 9999);
+        vec3 n = (sphere2->state.x - sphere->state.x).normalize();
 
         // Find the velocity in the normal direction after the collisions
 
-        float v1b = 9999;  // sphere 1 velocity before in normal direction
-        float v2b = 9999;  // sphere 2 velocity before in normal direction
+        float v1b = sphere->state.v * n;  // sphere 1 velocity before in normal direction
+        float v2b = sphere2->state.v * n;  // sphere 2 velocity before in normal direction
 
-        float m1 = 9999;  // sphere 1 mass
-        float m2 = 9999;  // sphere 2 mass
+        float m1 = sphere->mass();  // sphere 1 mass
+        float m2 = sphere->mass(); // sphere 2 mass
 
-        float v1a = 9999;  // sphere 1 velocity AFTER in normal direction
-        float v2a = 9999;  // sphere 2 velocity AFTER in normal direction
+        float v1a = v1b+ COEFF_OF_RESTITUTION *1/(m1)*(v1b-v2b) ;  // sphere 1 velocity AFTER in normal direction
+        float v2a = v2b + COEFF_OF_RESTITUTION * 1 / (m1) * (v1b - v2b);  // sphere 2 velocity AFTER in normal direction
 
         // Update sphere velocities in their respective 'state.v'
 
-        sphere->state.v = vec3(9999, 9999, 9999);   // sphere 1 velocity AFTER
-        sphere2->state.v = vec3(9999, 9999, 9999);  // sphere 2 velocity AFTER
+        sphere->state.v = sphere->state.v+(v1a - v1b) * n;
+        sphere2->state.v = sphere2->state.v+(v2a - v2b) * n;
 
         // [END OF YOUR CODE ABOVE]
 
