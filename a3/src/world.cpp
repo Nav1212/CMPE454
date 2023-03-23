@@ -545,24 +545,27 @@ void World::resolveCollision(Sphere *sphere, Object *otherObject)
         // of the rectangle, as the plane in these cases is NOT the plane
         // of the rectangle.
 
-        vec3 n = vec3(9999, 9999, 9999);
+        vec3 n = rectangle->normal;  // for now
 
         // Find the velocity in the normal direction after the collisions
+        // COEFF_OF_RESTITUTION
 
-        float v1b = 9999;  // sphere velocity before in normal direction
-        float v2b = 9999;  // rectangle velocity before in normal direction
+        float v1b = sphere->state.v * n;  // sphere velocity before in normal direction
+        float v2b = 0.0;                  // rectangle velocity before in normal direction
 
-        float m1 = 9999;  // sphere mass
+        float m1 = sphere->mass();  // sphere mass
 
-        float m2 = 9999;  // rectangle mass.  NOTE THAT THIS MASS IS VERY
-                          // LARGE AND CAN BE USED AS IF THE RECTANGLE IS
-                          // A MOVING OBJECT.  DO THIS!  See rectangle.h
+        float m2 = rectangle->mass();  // rectangle mass.  NOTE THAT THIS MASS IS VERY
+                                       // LARGE AND CAN BE USED AS IF THE RECTANGLE IS
+                                       // A MOVING OBJECT.  DO THIS!  See rectangle.h
 
-        float v1a = 9999;  // sphere velocity AFTER in normal direction
+        float v1bPerp = sphere->state.v.y;
+        float v1bPar = sphere->state.v.x;
+        float v1a = (COEFF_OF_RESTITUTION * v1bPerp) + v1bPar;  // sphere velocity AFTER in normal direction
 
         // Update state of sphere velocity only.  Do not change velocity of rectangle.
 
-        sphere->state.v = vec3(9999, 9999, 9999);  // sphere velocity AFTER
+        sphere->state.v = v1a * n;  // sphere velocity AFTER
 
         // [END OF YOUR CODE ABOVE]
 

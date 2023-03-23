@@ -35,7 +35,6 @@ float Sphere::distToRectangle(Rectangle &rectangle, vec3 *closestPoint)
 
     // [YOUR CODE HERE: REPLACE THE CODE BELOW]
 
-    // if (sphereCentre.z >= 0 && sphereCentre.z <= this->radius) {
     if (sphereCentre.x > -rectangle.xDim / 2.0f && sphereCentre.x < rectangle.xDim / 2.0f &&
         sphereCentre.y > -rectangle.yDim / 2.0f && sphereCentre.y < rectangle.yDim / 2.0f) {
         float xClamp = std::max(-rectangle.xDim / 2.0f, std::min(sphereCentre.x, rectangle.xDim / 2.0f));
