@@ -1,46 +1,49 @@
 // world.cpp
 
 #include "world.h"
-#include "main.h"
+
 #include <cstdlib>
-#include <iostream>
 #include <fstream>
 #include <iomanip>
+#include <iostream>
 
+#include "main.h"
 
-#define ZERO_ORIENTATION  quaternion( 0, vec3(1,0,0) )
-#define ZERO_VELOCITY     vec3(0,0,0)
-#define ZERO_ANG_VELOCITY vec3(0,0,0)
+#define ZERO_ORIENTATION quaternion(0, vec3(1, 0, 0))
+#define ZERO_VELOCITY vec3(0, 0, 0)
+#define ZERO_ANG_VELOCITY vec3(0, 0, 0)
 
 #define PIT_DEPTH 0.2
 
-#define NUM_SPHERES_TO_GEN        20
-#define MIN_SPHERE_RADIUS         0.08
-#define MAX_SPHERE_RADIUS         0.12
-#define MIN_DIST_BETWEEN_SPHERES  0.1
+#define NUM_SPHERES_TO_GEN 20
+#define MIN_SPHERE_RADIUS 0.08
+#define MAX_SPHERE_RADIUS 0.12
+#define MIN_DIST_BETWEEN_SPHERES 0.1
 
-#define SPHERE_VOLUME_MIN vec3(-1.5+MIN_SPHERE_RADIUS,-1+MIN_SPHERE_RADIUS,0.5) // volume in which spheres are generated
-#define SPHERE_VOLUME_MAX vec3( 1.5-MIN_SPHERE_RADIUS, 1-MIN_SPHERE_RADIUS,2.5)
+#define SPHERE_VOLUME_MIN \
+    vec3(-1.5 + MIN_SPHERE_RADIUS, -1 + MIN_SPHERE_RADIUS, 0.5)  // volume in which spheres are generated
+#define SPHERE_VOLUME_MAX vec3(1.5 - MIN_SPHERE_RADIUS, 1 - MIN_SPHERE_RADIUS, 2.5)
 
-#define MAX_SPHERE_GEN_ATTEMPTS  10
+#define MAX_SPHERE_GEN_ATTEMPTS 10
 
-#define GRAVITY_ACCEL  vec3( 0, 0, -9.8 )   // m/s/s
+#define GRAVITY_ACCEL vec3(0, 0, -9.8)  // m/s/s
 
-#define MIN_DELTA_T_FOR_COLLISIONS  0.001   // minimum delta-t between a non-collision state and a collision state (for binary search)
+#define MIN_DELTA_T_FOR_COLLISIONS \
+    0.001  // minimum delta-t between a non-collision state and a collision state (for binary search)
 
-#define COEFF_OF_RESTITUTION -0.8 // same between all pairs of objects
+#define COEFF_OF_RESTITUTION -0.8  // same between all pairs of objects
 
-#define MIN_NORMAL_DISTANCE 0.05 // distance below which a sphere comes to rest perp to the plane (can still have parallel motion)
-#define MIN_NORMAL_SPEED 0.05     // speed below which a sphere comes to rest
+#define MIN_NORMAL_DISTANCE \
+    0.05  // distance below which a sphere comes to rest perp to the plane (can still have parallel motion)
+#define MIN_NORMAL_SPEED 0.05  // speed below which a sphere comes to rest
 
-#define MAX_TIME_STEP 0.001 // max time of one integration step
+#define MAX_TIME_STEP 0.001  // max time of one integration step
 
-#define RECTANGLE_EDGE_BUFFER 0.03 // distance beyond rectangle edge after which to release constrained sphere
+#define RECTANGLE_EDGE_BUFFER 0.03  // distance beyond rectangle edge after which to release constrained sphere
 
-#define MIN_SPHERE_Z -5 // height below which sphere is removed
+#define MIN_SPHERE_Z -5  // height below which sphere is removed
 
-#define W2(x) std::setw(2)<<std::setfill('0')<<std::fixed<<(x)
-
+#define W2(x) std::setw(2) << std::setfill('0') << std::fixed << (x)
 
 // Rectangle definitions
 
@@ -48,129 +51,103 @@
 
 const RectangleDef World::initRectangles[] = {
 
-  // xDim, yDim, normal, centre
+    // xDim, yDim, normal, centre
 
+    {3.02, 2.02, vec3(0, 0, 1), vec3(0, 0, -PIT_DEPTH)},  // pit floor
 
-  { 3.02, 2.02, vec3(0, 0,1), vec3(0,0,-PIT_DEPTH)      }, // pit floor
+    {3, PIT_DEPTH, vec3(0, -1, 0), vec3(0, 1, -PIT_DEPTH / 2.0)},  // pit sides
+    {3, PIT_DEPTH, vec3(0, 1, 0), vec3(0, -1, -PIT_DEPTH / 2.0)},
+    {PIT_DEPTH, 2.02, vec3(-1, 0, 0), vec3(-1.5, 0, -PIT_DEPTH / 2.0)},
+    {PIT_DEPTH, 2.02, vec3(1, 0, 0), vec3(1.5, 0, -PIT_DEPTH / 2.0)},
 
-
-  { 3,       PIT_DEPTH, vec3(0,-1,0), vec3(0,1,-PIT_DEPTH/2.0)    }, // pit sides
-  { 3,       PIT_DEPTH, vec3(0, 1,0), vec3(0,-1,-PIT_DEPTH/2.0)   },
-  { PIT_DEPTH,    2.02, vec3(-1,0,0), vec3(-1.5,0,-PIT_DEPTH/2.0) },
-  { PIT_DEPTH,    2.02, vec3( 1,0,0), vec3(1.5,0,-PIT_DEPTH/2.0)  },
-
-  { 9.02, 3.52, vec3(0,0,1),  vec3(0,-2.75,0)   }, // ground around pit
-  { 9.02, 3.52, vec3(0,0,1),  vec3(0,2.75,0)    },
-  { 3.02, 2.02, vec3(0,0,1),  vec3(-3,0,0)      },
-  { 3.02, 2.02, vec3(0,0,1),  vec3(3,0,0)       }
-};
-
-
+    {9.02, 3.52, vec3(0, 0, 1), vec3(0, -2.75, 0)},  // ground around pit
+    {9.02, 3.52, vec3(0, 0, 1), vec3(0, 2.75, 0)},
+    {3.02, 2.02, vec3(0, 0, 1), vec3(-3, 0, 0)},
+    {3.02, 2.02, vec3(0, 0, 1), vec3(3, 0, 0)}};
 
 // World constructor
 
-World::World( char *sphereFilename ) 
+World::World(char *sphereFilename)
 
 {
-  // Add the rectangles defined above in 'initRectangles'
-  
-  for (int i=0; i<NUM_RECTANGLES; i++)
-    rectangles.add( Rectangle( initRectangles[i].xDim,
-			       initRectangles[i].yDim,
-			       initRectangles[i].normal,
-			       initRectangles[i].centre,
-			       ZERO_ORIENTATION,
-			       ZERO_VELOCITY,
-			       ZERO_ANG_VELOCITY ) );
+    // Add the rectangles defined above in 'initRectangles'
 
-  // Read spheres from file (if provided)
+    for (int i = 0; i < NUM_RECTANGLES; i++)
+        rectangles.add(Rectangle(initRectangles[i].xDim, initRectangles[i].yDim, initRectangles[i].normal,
+                                 initRectangles[i].centre, ZERO_ORIENTATION, ZERO_VELOCITY, ZERO_ANG_VELOCITY));
 
-  if (sphereFilename != NULL) {
+    // Read spheres from file (if provided)
 
-    ifstream in( sphereFilename );
-    float radius;
-    vec3 centre;
+    if (sphereFilename != NULL) {
+        ifstream in(sphereFilename);
+        float radius;
+        vec3 centre;
 
-    while (in >> radius >> centre)
-      spheres.add( Sphere( SPHERE_LEVELS, 
-			   radius,
-			   centre,
-			   ZERO_ORIENTATION,
-			   ZERO_VELOCITY,
-			   ZERO_ANG_VELOCITY ) );
+        while (in >> radius >> centre)
+            spheres.add(Sphere(SPHERE_LEVELS, radius, centre, ZERO_ORIENTATION, ZERO_VELOCITY, ZERO_ANG_VELOCITY));
 
-    cout << "Read " << spheres.size() << " spheres from " << sphereFilename << endl;
-    return;
-  }
-
-  // Otherwise, generate spheres randomly in the [SPHERE_VOLUME_MIN, SPHERE_VOLUME_MAX] volume
-  //
-  // Ensure that they are separated by at least MIN_DIST_BETWEEN_SPHERES
-
-  srand( 23546234 );
-  
-  vec3 sphereCentres[NUM_SPHERES_TO_GEN];
-  float sphereRadii[NUM_SPHERES_TO_GEN];
-
-  int numSpheres = 0;
-
-  for (int i=0; i<NUM_SPHERES_TO_GEN; i++) {
-
-    vec3 centre;
-    float radius;
-    float minDist;
-
-    int attempts = 0;
-    do {
-    
-      // Generate a position
-      
-      for (int j=0; j<3; j++)
-	centre[j] = randIn01() * (SPHERE_VOLUME_MAX[j] - SPHERE_VOLUME_MIN[j]) + SPHERE_VOLUME_MIN[j];
-
-      radius = randIn01() * (MAX_SPHERE_RADIUS - MIN_SPHERE_RADIUS) + MIN_SPHERE_RADIUS;
-
-      // Find min distance to other sphere centres
-      
-      minDist = FLT_MAX;
-      for (int k=0; k<i; k++) {
-	float dist = (centre - sphereCentres[k]).length() - sphereRadii[k] - radius; // distance between sphere surfaces
-	if (dist < minDist)
-	  minDist = dist;
-      }
-
-      attempts++;
-
-    } while (minDist < MIN_DIST_BETWEEN_SPHERES && attempts < MAX_SPHERE_GEN_ATTEMPTS); // try again if too close
-
-    if (attempts < MAX_SPHERE_GEN_ATTEMPTS) {
-
-      sphereRadii[numSpheres]   = radius;
-      sphereCentres[numSpheres] = centre;
-      numSpheres++;
-
-      spheres.add( Sphere( SPHERE_LEVELS, 
-			   radius,
-			   centre,
-			   ZERO_ORIENTATION,
-			   ZERO_VELOCITY,
-			   ZERO_ANG_VELOCITY ) );
+        cout << "Read " << spheres.size() << " spheres from " << sphereFilename << endl;
+        return;
     }
-  }
 
-  if (numSpheres < NUM_SPHERES_TO_GEN) 
-    cout << "Only generated " << numSpheres << " spheres instead of the desired " << NUM_SPHERES_TO_GEN << ", likely due to crowding the the generation volume." << endl;
+    // Otherwise, generate spheres randomly in the [SPHERE_VOLUME_MIN, SPHERE_VOLUME_MAX] volume
+    //
+    // Ensure that they are separated by at least MIN_DIST_BETWEEN_SPHERES
 
-  // Record this last set of sphere in case we want to debug with
-  // the same spheres that were randomly generated.
+    srand(23546234);
 
-  ofstream out( "../tests/lastSpheres.txt" );
+    vec3 sphereCentres[NUM_SPHERES_TO_GEN];
+    float sphereRadii[NUM_SPHERES_TO_GEN];
 
-  for (int i=0; i<numSpheres; i++)
-    out << spheres[i].radius << " " << spheres[i].state.x << endl;
+    int numSpheres = 0;
+
+    for (int i = 0; i < NUM_SPHERES_TO_GEN; i++) {
+        vec3 centre;
+        float radius;
+        float minDist;
+
+        int attempts = 0;
+        do {
+            // Generate a position
+
+            for (int j = 0; j < 3; j++)
+                centre[j] = randIn01() * (SPHERE_VOLUME_MAX[j] - SPHERE_VOLUME_MIN[j]) + SPHERE_VOLUME_MIN[j];
+
+            radius = randIn01() * (MAX_SPHERE_RADIUS - MIN_SPHERE_RADIUS) + MIN_SPHERE_RADIUS;
+
+            // Find min distance to other sphere centres
+
+            minDist = FLT_MAX;
+            for (int k = 0; k < i; k++) {
+                float dist =
+                    (centre - sphereCentres[k]).length() - sphereRadii[k] - radius;  // distance between sphere surfaces
+                if (dist < minDist) minDist = dist;
+            }
+
+            attempts++;
+
+        } while (minDist < MIN_DIST_BETWEEN_SPHERES && attempts < MAX_SPHERE_GEN_ATTEMPTS);  // try again if too close
+
+        if (attempts < MAX_SPHERE_GEN_ATTEMPTS) {
+            sphereRadii[numSpheres] = radius;
+            sphereCentres[numSpheres] = centre;
+            numSpheres++;
+
+            spheres.add(Sphere(SPHERE_LEVELS, radius, centre, ZERO_ORIENTATION, ZERO_VELOCITY, ZERO_ANG_VELOCITY));
+        }
+    }
+
+    if (numSpheres < NUM_SPHERES_TO_GEN)
+        cout << "Only generated " << numSpheres << " spheres instead of the desired " << NUM_SPHERES_TO_GEN
+             << ", likely due to crowding the the generation volume." << endl;
+
+    // Record this last set of sphere in case we want to debug with
+    // the same spheres that were randomly generated.
+
+    ofstream out("../tests/lastSpheres.txt");
+
+    for (int i = 0; i < numSpheres; i++) out << spheres[i].radius << " " << spheres[i].state.x << endl;
 }
-
-
 
 // Integrate
 //
@@ -179,191 +156,208 @@ World::World( char *sphereFilename )
 // Update the sphere states to yEnd.  Then call 'findCollisions' to
 // set collisionAtEnd, collisionSphere, and collisionObject.
 
-
-void World::integrate( State *yStart, State *yEnd, float deltaT, bool &collisionAtEnd, Sphere **collisionSphere, Object **collisionObject )
+void World::integrate(State *yStart, State *yEnd, float deltaT, bool &collisionAtEnd, Sphere **collisionSphere,
+                      Object **collisionObject)
 
 {
-  int nSpheres = spheres.size();
+    int nSpheres = spheres.size();
 
-  State *y      = new State[ nSpheres ];
-  State *yDeriv = new State[ nSpheres ];
+    State *y = new State[nSpheres];
+    State *yDeriv = new State[nSpheres];
 
-  // For each state in 'yStart', copy it to 'y' and set 'yDeriv'
-  // appropriately.  Use GRAVITY_ACCEL as the velocity derivative.
-  // Set the angular velocity derivative to zero.
+    // For each state in 'yStart', copy it to 'y' and set 'yDeriv'
+    // appropriately.  Use GRAVITY_ACCEL as the velocity derivative.
+    // Set the angular velocity derivative to zero.
 
-  // [YOUR CODE HERE]
+    // [YOUR CODE HERE]
 
-  // Integrate: Compute yEnd = yStart + deltaT * yDeriv
-  //
-  // Do this on the individual floats in 'y' and 'yDeriv'.  Do not
-  // refer to the sphere states here.
+    float q0 = yStart->q.q0;
+    float q1 = yStart->q.q1;
+    float q2 = yStart->q.q2;
+    float q3 = yStart->q.q3;
 
-  // [YOUR CODE HERE]
+    mat4 Q;
+    Q.rows[0] = vec4(-q1, -q2, -q3, 0);
+    Q.rows[1] = vec4(q0, -q3, q2, 0);
+    Q.rows[2] = vec4(q3, q0, q1, 0);
+    Q.rows[3] = vec4(-q2, q1, q0, 0);
+    Q = 0.5 * Q;
+    vec4 Qw = Q * vec4(yStart->w, 0);
 
-  // Copy yEnd state into sphere states
+    y->x = yStart->x;
+    y->v = yStart->v;
+    y->q = yStart->q;
+    y->w = yStart->w;
 
+    yDeriv->x = yStart->v;                                 // velocity
+    yDeriv->v = GRAVITY_ACCEL;                             // acceleration
+    yDeriv->q = quaternion(Qw.x, Qw.y, Qw.z, Qw.w);  // Qw
+    yDeriv->w = vec3(0, 0, 0);
 
-  copyState( &spheres[0], yEnd );  // [----- DELETE THIS LINE !!!!  DO NOT ADD CODE HERE. -----]
+    // Integrate: Compute yEnd = yStart + deltaT * yDeriv
+    //
+    // Do this on the individual floats in 'y' and 'yDeriv'.  Do not
+    // refer to the sphere states here.
 
+    // [YOUR CODE HERE]
 
-  copyState( yEnd, &spheres[0] );
+    yEnd->x = y->x + (deltaT * yDeriv->x);
+    yEnd->v = y->v + (deltaT * yDeriv->v);
+    yEnd->q = quaternion(y->q.q0 + (deltaT * yDeriv->q.q0), y->q.q1 + (deltaT * yDeriv->q.q1),
+                         y->q.q2 + (deltaT * yDeriv->q.q2), y->q.q3 + (deltaT * yDeriv->q.q3));
+    yEnd->w = y->w + (deltaT * yDeriv->w);
 
-  // Check for collisions
+    // Copy yEnd state into sphere states
 
-  collisionAtEnd = findCollisions( collisionSphere, collisionObject );
+    // copyState(&spheres[0], yEnd);  // [----- DELETE THIS LINE !!!!  DO NOT ADD CODE HERE. -----]
 
-  // Clean up
-  
-  delete [] y;
-  delete [] yDeriv;
+    copyState(yEnd, &spheres[0]);
+
+    // Check for collisions
+
+    collisionAtEnd = findCollisions(collisionSphere, collisionObject);
+
+    // Clean up
+
+    delete[] y;
+    delete[] yDeriv;
 }
-
-
 
 // Update the world state
 //
 // Move in integration steps of at most 'maxTimeStep'
 
-
-void World::updateState( float elapsedTime )
+void World::updateState(float elapsedTime)
 
 {
-  float simulatedElapsedTime = timeFactor * elapsedTime;
-  
-  float actualDeltaT = 0;
-  
-  // Go in steps of MAX_TIME_STEP until deltaT
-  
-  while (actualDeltaT <  simulatedElapsedTime - MAX_TIME_STEP)
-    actualDeltaT += updateStateByDeltaT( MAX_TIME_STEP ); // might advance less than MAX_TIME_STEP
+    float simulatedElapsedTime = timeFactor * elapsedTime;
 
-  while (actualDeltaT < simulatedElapsedTime)
-    actualDeltaT += updateStateByDeltaT( simulatedElapsedTime - actualDeltaT );
+    float actualDeltaT = 0;
 
-  // Remove any spheres that have fallen far off the base
+    // Go in steps of MAX_TIME_STEP until deltaT
 
-  for (int i=0; i<spheres.size(); i++)
-    if (spheres[i].state.x.z < MIN_SPHERE_Z) {
-      spheres.remove(i);
-      i--;
-    }
+    while (actualDeltaT < simulatedElapsedTime - MAX_TIME_STEP)
+        actualDeltaT += updateStateByDeltaT(MAX_TIME_STEP);  // might advance less than MAX_TIME_STEP
+
+    while (actualDeltaT < simulatedElapsedTime)
+        actualDeltaT += updateStateByDeltaT(simulatedElapsedTime - actualDeltaT);
+
+    // Remove any spheres that have fallen far off the base
+
+    for (int i = 0; i < spheres.size(); i++)
+        if (spheres[i].state.x.z < MIN_SPHERE_Z) {
+            spheres.remove(i);
+            i--;
+        }
 }
-
-
 
 // Advance the state by time deltaT, or to the first collision that
 // occurs.  If a collision occurs, resolve it and set the state to the
 // time just before the collision.
 
-float World::updateStateByDeltaT( float deltaT )
+float World::updateStateByDeltaT(float deltaT)
 
 {
-  if (spheres.size() == 0)
-    return deltaT;
+    if (spheres.size() == 0) return deltaT;
 
-  // For spheres constrained to be rolling on rectangles, set the
-  // sphere velocity normal to the rectangle to be zero.  Also ensure
-  // that the sphere touches the rectangle and a single point.
-  //
-  // Also: Remove the constraint when the sphere moves off the
-  // rectangle.
-  //
-  // This is not very realistic, as there's no rolling.
-  
-  for (int i=0; i<spheres.size(); i++) {
-    Sphere &s = spheres[i];
-    for (int j=0; j<spheres[i].constraintRectangles.size(); j++) {
-      Rectangle &r = *(spheres[i].constraintRectangles[j]);
+    // For spheres constrained to be rolling on rectangles, set the
+    // sphere velocity normal to the rectangle to be zero.  Also ensure
+    // that the sphere touches the rectangle and a single point.
+    //
+    // Also: Remove the constraint when the sphere moves off the
+    // rectangle.
+    //
+    // This is not very realistic, as there's no rolling.
 
-      // Check for constraint removal
+    for (int i = 0; i < spheres.size(); i++) {
+        Sphere &s = spheres[i];
+        for (int j = 0; j < spheres[i].constraintRectangles.size(); j++) {
+            Rectangle &r = *(spheres[i].constraintRectangles[j]);
 
-      vec3 sphereCentre = (r.OCS_to_WCS().inverse() * vec4( s.state.x, 1.0 )).toVec3(); // now in coordinate system of rectangle
+            // Check for constraint removal
 
-      if (fabs(sphereCentre.x) > r.xDim/2.0+RECTANGLE_EDGE_BUFFER ||
-	  fabs(sphereCentre.y) > r.yDim/2.0+RECTANGLE_EDGE_BUFFER) {
+            vec3 sphereCentre =
+                (r.OCS_to_WCS().inverse() * vec4(s.state.x, 1.0)).toVec3();  // now in coordinate system of rectangle
 
-	spheres[i].constraintRectangles.remove(j);
+            if (fabs(sphereCentre.x) > r.xDim / 2.0 + RECTANGLE_EDGE_BUFFER ||
+                fabs(sphereCentre.y) > r.yDim / 2.0 + RECTANGLE_EDGE_BUFFER) {
+                spheres[i].constraintRectangles.remove(j);
 #if 0
 	cout << "Removed s" << W2(i) << "-r" << W2(j) << " constraint" << endl;
 #endif
-	j--;
-	continue;
-      }
+                j--;
+                continue;
+            }
 
-      // Set position and velocity
-      
-      vec3 &n = r.normal;  // normal
-      vec3 &v = s.state.v; // velocity
-      vec3 &x = s.state.x; // position
+            // Set position and velocity
 
-      v = v - (v*n)*n;  // Set normal velocity to zero
-      x = x - ((x - r.centre)*n - s.radius)*n;  // Set normal position one sphere radius from rectangle
+            vec3 &n = r.normal;   // normal
+            vec3 &v = s.state.v;  // velocity
+            vec3 &x = s.state.x;  // position
+
+            v = v - (v * n) * n;                          // Set normal velocity to zero
+            x = x - ((x - r.centre) * n - s.radius) * n;  // Set normal position one sphere radius from rectangle
+        }
     }
-  }
 
-  // Collect start state
+    // Collect start state
 
-  State *yStart = new State[ spheres.size() ];
-  State *yEnd   = new State[ spheres.size() ];
+    State *yStart = new State[spheres.size()];
+    State *yEnd = new State[spheres.size()];
 
-  copyState( &spheres[0], yStart );  // copy sphere states into state vector 'yStart'
+    copyState(&spheres[0], yStart);  // copy sphere states into state vector 'yStart'
 
-  // Integrate
-  
-  bool collisionAtEnd;
-  Sphere *collisionSphere = NULL;
-  Object *collisionObject = NULL;
+    // Integrate
 
-  float actualDeltaT;
+    bool collisionAtEnd;
+    Sphere *collisionSphere = NULL;
+    Object *collisionObject = NULL;
 
-  integrate( yStart, yEnd, deltaT, collisionAtEnd, &collisionSphere, &collisionObject );
+    float actualDeltaT;
 
-  if (!collisionAtEnd) {
+    integrate(yStart, yEnd, deltaT, collisionAtEnd, &collisionSphere, &collisionObject);
 
-    // no collisions in this integration step.  We're done.
+    if (!collisionAtEnd) {
+        // no collisions in this integration step.  We're done.
 
-    actualDeltaT = deltaT;
-    copyState( yEnd, &spheres[0] );  // update sphere states and return
+        actualDeltaT = deltaT;
+        copyState(yEnd, &spheres[0]);  // update sphere states and return
 
-  } else {
+    } else {
+        // a collision: Do binary seach until interval is at most
+        // MIN_DELTA_T_FOR_COLLISIONS.
+        //
+        // Once your search is complete, 'yStart' should contain the state
+        // at the start of the interval and 'yEnd' should contain the
+        // state at the end of the interval.  Call integrate() as
+        // necessary to get the end state from a given start state.
+        //
+        // Once the search is complete, 'actualDeltaT' should be the time
+        // to the start of the interval.  actualDeltaT is in (0,deltaT)
+        // and is the amount of time the simulation advances before the
+        // collision is arrived at.
+        //
+        // Read the code above to see how it can be determined that no
+        // collisions occur in an interval.
 
-    // a collision: Do binary seach until interval is at most
-    // MIN_DELTA_T_FOR_COLLISIONS.
-    //
-    // Once your search is complete, 'yStart' should contain the state
-    // at the start of the interval and 'yEnd' should contain the
-    // state at the end of the interval.  Call integrate() as
-    // necessary to get the end state from a given start state.
-    //
-    // Once the search is complete, 'actualDeltaT' should be the time
-    // to the start of the interval.  actualDeltaT is in (0,deltaT)
-    // and is the amount of time the simulation advances before the
-    // collision is arrived at.
-    //
-    // Read the code above to see how it can be determined that no
-    // collisions occur in an interval.
-    
-    actualDeltaT = 0;
+        actualDeltaT = 0;
 
+        // [YOUR CODE HERE]
 
-    // [YOUR CODE HERE]
-    
+        // Set the sphere states to that at the START of the interval so
+        // that collision has not yet occurred.  Since the objects DO NOT
+        // MOVE during collision resolution, this ensures that the objects
+        // are not in collision immediately after the collision is
+        // resolved.  (In the contrary case, a new collision would be
+        // immediately detected, causing the simulation to stop advancing.)
 
-    // Set the sphere states to that at the START of the interval so
-    // that collision has not yet occurred.  Since the objects DO NOT
-    // MOVE during collision resolution, this ensures that the objects
-    // are not in collision immediately after the collision is
-    // resolved.  (In the contrary case, a new collision would be
-    // immediately detected, causing the simulation to stop advancing.)
+        copyState(yStart, &spheres[0]);
 
-    copyState( yStart, &spheres[0] );
+        // Resolve the collision
 
-    // Resolve the collision
+        resolveCollision(collisionSphere, collisionObject);
 
-    resolveCollision( collisionSphere, collisionObject );
-
-    // Debugging: report collision
+        // Debugging: report collision
 
 #if 0
     bool otherIsSphere = (dynamic_cast<Sphere*>( collisionObject ) != NULL);
@@ -381,231 +375,220 @@ float World::updateStateByDeltaT( float deltaT )
 	   << ", relative position " << (collisionSphere->state.x - r->centre) * r->normal << endl;
     }
 #endif
+    }
 
-  }
+    // Clean up
 
-  // Clean up
+    delete[] yStart;
+    delete[] yEnd;
 
-  delete [] yStart;
-  delete [] yEnd;
-
-  return actualDeltaT;
+    return actualDeltaT;
 }
-
-
 
 // If there was a collision over time deltaT, use binary search to
 // find the time of collision (to within MIN_DELTA_T_FOR_COLLISIONS)
 // and set yEnd to the state just BEFORE that collision.
 //
 
-
-bool World::findCollisions( Sphere **collisionSphere, Object **collisionObject )
+bool World::findCollisions(Sphere **collisionSphere, Object **collisionObject)
 
 {
-  int nSpheres = spheres.size();
+    int nSpheres = spheres.size();
 
-  // Reset min distances on each sphere (used for drawing lines to closest object)
-  
-  for (int i=0; i<nSpheres; i++)
-    spheres[i].minDist = FLT_MAX;
+    // Reset min distances on each sphere (used for drawing lines to closest object)
 
-  // Check for sphere/sphere collisions
+    for (int i = 0; i < nSpheres; i++) spheres[i].minDist = FLT_MAX;
 
-  float minDist = FLT_MAX;
+    // Check for sphere/sphere collisions
 
-  for (int i=0; i<nSpheres; i++)
-    for (int j=0; j<nSpheres; j++) 
-      if (i != j) {
+    float minDist = FLT_MAX;
 
-	vec3 centreToCentre = spheres[j].state.x - spheres[i].state.x;
-	float dist = centreToCentre.length() - spheres[i].radius - spheres[j].radius;
+    for (int i = 0; i < nSpheres; i++)
+        for (int j = 0; j < nSpheres; j++)
+            if (i != j) {
+                vec3 centreToCentre = spheres[j].state.x - spheres[i].state.x;
+                float dist = centreToCentre.length() - spheres[i].radius - spheres[j].radius;
 
-	float relativeVelocitySign = (spheres[j].state.v - spheres[i].state.v) * centreToCentre;
+                float relativeVelocitySign = (spheres[j].state.v - spheres[i].state.v) * centreToCentre;
 
-	if (relativeVelocitySign < 0 || true) { // < 0 if coming together, > 0 is moving apart
+                if (relativeVelocitySign < 0 || true) {  // < 0 if coming together, > 0 is moving apart
 
-	  if (dist < minDist) {
-	    minDist = dist;
-	    *collisionSphere = &spheres[i];
-	    *collisionObject = &spheres[j];
-	  }
+                    if (dist < minDist) {
+                        minDist = dist;
+                        *collisionSphere = &spheres[i];
+                        *collisionObject = &spheres[j];
+                    }
 
-	  if (dist < spheres[i].minDist) {
-	    spheres[i].minDist = dist;
-	    spheres[i].contactPoint = spheres[i].state.x + 0.5 * centreToCentre;
-	  }
-	}
-      }
+                    if (dist < spheres[i].minDist) {
+                        spheres[i].minDist = dist;
+                        spheres[i].contactPoint = spheres[i].state.x + 0.5 * centreToCentre;
+                    }
+                }
+            }
 
-  // Check for sphere/rectangle collisions
-  //
-  // However, do not check against rectangles that a sphere is constrained to remain in contact with.
+    // Check for sphere/rectangle collisions
+    //
+    // However, do not check against rectangles that a sphere is constrained to remain in contact with.
 
-  for (int i=0; i<nSpheres; i++)
-    for (int j=0; j<rectangles.size(); j++) 
-      if (! spheres[i].constraintRectangles.exists( &rectangles[j] )) { // skip constraining rectangles
+    for (int i = 0; i < nSpheres; i++)
+        for (int j = 0; j < rectangles.size(); j++)
+            if (!spheres[i].constraintRectangles.exists(&rectangles[j])) {  // skip constraining rectangles
 
-	vec3 contactPoint;
-	float dist = spheres[i].distToRectangle( rectangles[j], &contactPoint );
+                vec3 contactPoint;
+                float dist = spheres[i].distToRectangle(rectangles[j], &contactPoint);
 
-	float relativeVelocitySign = (((spheres[i].state.x - rectangles[j].centre) * rectangles[j].normal) * rectangles[j].normal) * spheres[i].state.v;
+                float relativeVelocitySign =
+                    (((spheres[i].state.x - rectangles[j].centre) * rectangles[j].normal) * rectangles[j].normal) *
+                    spheres[i].state.v;
 
-	if (relativeVelocitySign < 0 || true) { // < 0 if coming together, > 0 is moving apart
+                if (relativeVelocitySign < 0 || true) {  // < 0 if coming together, > 0 is moving apart
 
-	  if (dist < minDist) {
-	    minDist = dist;
-	    *collisionSphere = &spheres[i];
-	    *collisionObject = &rectangles[j];
-	  }
+                    if (dist < minDist) {
+                        minDist = dist;
+                        *collisionSphere = &spheres[i];
+                        *collisionObject = &rectangles[j];
+                    }
 
-	  if (dist < spheres[i].minDist) {
-	    spheres[i].minDist = dist;
-	    spheres[i].contactPoint = contactPoint;
-	  }
-	}
-      }
+                    if (dist < spheres[i].minDist) {
+                        spheres[i].minDist = dist;
+                        spheres[i].contactPoint = contactPoint;
+                    }
+                }
+            }
 
-  return (minDist <= 0);
+    return (minDist <= 0);
 }
-
-
 
 // Resolve a collision between a sphere and another object.  The other
 // object can be a sphere or a rectangle.  Rectangles are immovable.
 
-void World::resolveCollision( Sphere *sphere, Object *otherObject )
+void World::resolveCollision(Sphere *sphere, Object *otherObject)
 
 {
-  // Extract the collision object as a sphere or rectangle
-  
-  bool otherIsSphere = (dynamic_cast<Sphere*>(otherObject) != NULL);
+    // Extract the collision object as a sphere or rectangle
 
-  if (otherIsSphere) {
+    bool otherIsSphere = (dynamic_cast<Sphere *>(otherObject) != NULL);
 
-    // SPHERE/SPHERE COLLISION
+    if (otherIsSphere) {
+        // SPHERE/SPHERE COLLISION
 
-    Sphere *sphere2 = dynamic_cast<Sphere*>(otherObject);
+        Sphere *sphere2 = dynamic_cast<Sphere *>(otherObject);
 
-    // [YOUR CODE HERE: REPLACE THE CODE BELOW]
-    
-    // Find a normal to the tangent plane between the spheres
+        // [YOUR CODE HERE: REPLACE THE CODE BELOW]
 
-    vec3 n = vec3(9999,9999,9999);
+        // Find a normal to the tangent plane between the spheres
 
-    // Find the velocity in the normal direction after the collisions
+        vec3 n = vec3(9999, 9999, 9999);
 
-    float v1b = 9999; // sphere 1 velocity before in normal direction
-    float v2b = 9999; // sphere 2 velocity before in normal direction
+        // Find the velocity in the normal direction after the collisions
 
-    float m1 = 9999;  // sphere 1 mass
-    float m2 = 9999;  // sphere 2 mass
-  
-    float v1a = 9999; // sphere 1 velocity AFTER in normal direction
-    float v2a = 9999; // sphere 2 velocity AFTER in normal direction
+        float v1b = 9999;  // sphere 1 velocity before in normal direction
+        float v2b = 9999;  // sphere 2 velocity before in normal direction
 
-    // Update sphere velocities in their respective 'state.v'
-  
-    sphere->state.v  = vec3(9999,9999,9999);  // sphere 1 velocity AFTER
-    sphere2->state.v = vec3(9999,9999,9999);  // sphere 2 velocity AFTER
+        float m1 = 9999;  // sphere 1 mass
+        float m2 = 9999;  // sphere 2 mass
 
-    // [END OF YOUR CODE ABOVE]
+        float v1a = 9999;  // sphere 1 velocity AFTER in normal direction
+        float v2a = 9999;  // sphere 2 velocity AFTER in normal direction
 
-  } else {
+        // Update sphere velocities in their respective 'state.v'
 
-    // SPHERE/RECTANGLE COLLISION
+        sphere->state.v = vec3(9999, 9999, 9999);   // sphere 1 velocity AFTER
+        sphere2->state.v = vec3(9999, 9999, 9999);  // sphere 2 velocity AFTER
 
-    Rectangle *rectangle = dynamic_cast<Rectangle*>(otherObject);
+        // [END OF YOUR CODE ABOVE]
 
-    // [YOUR CODE HERE: REPLACE THE CODE BELOW]
-    
-    // Find tangent plane normal
-    //
-    // Be careful to consider when the sphere hits the edge or corner
-    // of the rectangle, as the plane in these cases is NOT the plane
-    // of the rectangle.
+    } else {
+        // SPHERE/RECTANGLE COLLISION
 
-    vec3 n = vec3(9999,9999,9999);
-    
-    // Find the velocity in the normal direction after the collisions
+        Rectangle *rectangle = dynamic_cast<Rectangle *>(otherObject);
 
-    float v1b = 9999; // sphere velocity before in normal direction
-    float v2b = 9999; // rectangle velocity before in normal direction
+        // [YOUR CODE HERE: REPLACE THE CODE BELOW]
 
-    float m1 = 9999;  // sphere mass
+        // Find tangent plane normal
+        //
+        // Be careful to consider when the sphere hits the edge or corner
+        // of the rectangle, as the plane in these cases is NOT the plane
+        // of the rectangle.
 
-    float m2 = 9999;  // rectangle mass.  NOTE THAT THIS MASS IS VERY
-		      // LARGE AND CAN BE USED AS IF THE RECTANGLE IS
-		      // A MOVING OBJECT.  DO THIS!  See rectangle.h
-  
-    float v1a = 9999; // sphere velocity AFTER in normal direction
+        vec3 n = vec3(9999, 9999, 9999);
 
-    // Update state of sphere velocity only.  Do not change velocity of rectangle.
-  
-    sphere->state.v  = vec3(9999,9999,9999);  // sphere velocity AFTER
+        // Find the velocity in the normal direction after the collisions
 
-    // [END OF YOUR CODE ABOVE]
+        float v1b = 9999;  // sphere velocity before in normal direction
+        float v2b = 9999;  // rectangle velocity before in normal direction
 
-    // Check whether a sphere/rectangle collision results in a tiny
-    // sphere velocity normal to the plane such that the sphere will
-    // remain close to the plane in the time step.  In this case,
-    // add a constraint that the sphere remains on the plane.
-    //
-    // Note that a sphere could be constrained to multiple planes.
+        float m1 = 9999;  // sphere mass
 
-    float distToPlane = (sphere->state.x - rectangle->centre) * rectangle->normal - sphere->radius;
+        float m2 = 9999;  // rectangle mass.  NOTE THAT THIS MASS IS VERY
+                          // LARGE AND CAN BE USED AS IF THE RECTANGLE IS
+                          // A MOVING OBJECT.  DO THIS!  See rectangle.h
 
-    if (fabs(distToPlane) < MIN_NORMAL_DISTANCE && fabs(v1a) < MIN_NORMAL_SPEED) {
-      sphere->constraintRectangles.add( rectangle );
+        float v1a = 9999;  // sphere velocity AFTER in normal direction
+
+        // Update state of sphere velocity only.  Do not change velocity of rectangle.
+
+        sphere->state.v = vec3(9999, 9999, 9999);  // sphere velocity AFTER
+
+        // [END OF YOUR CODE ABOVE]
+
+        // Check whether a sphere/rectangle collision results in a tiny
+        // sphere velocity normal to the plane such that the sphere will
+        // remain close to the plane in the time step.  In this case,
+        // add a constraint that the sphere remains on the plane.
+        //
+        // Note that a sphere could be constrained to multiple planes.
+
+        float distToPlane = (sphere->state.x - rectangle->centre) * rectangle->normal - sphere->radius;
+
+        if (fabs(distToPlane) < MIN_NORMAL_DISTANCE && fabs(v1a) < MIN_NORMAL_SPEED) {
+            sphere->constraintRectangles.add(rectangle);
 #if 0
       cout << "Added   s" << W2(sphere - &spheres[0]) << "-r" << W2(rectangle - &rectangles[0]) << " constraint" << endl;
 #endif
+        }
     }
-  }
 }
-
-
 
 // Draw the world
 
-void World::draw( mat4 WCS_to_VCS, mat4 VCS_to_CCS, vec3 &lightDir )
+void World::draw(mat4 WCS_to_VCS, mat4 VCS_to_CCS, vec3 &lightDir)
 
 {
-  vec3 lightRed( 0.984, 0.322, 0.220 );   // free sphere
-  vec3 greenish( 0.105, 0.700, 0.305 );   // sphere constrained to rectangle
+    vec3 lightRed(0.984, 0.322, 0.220);  // free sphere
+    vec3 greenish(0.105, 0.700, 0.305);  // sphere constrained to rectangle
 
-  vec3 cerulean(  0.608, 0.769, 0.886 );  // pit sides and ground
-  vec3 deeperCerulean = 0.8 * cerulean;   // pit bottom
+    vec3 cerulean(0.608, 0.769, 0.886);    // pit sides and ground
+    vec3 deeperCerulean = 0.8 * cerulean;  // pit bottom
 
-  // Draw spheres
-  
-  for (int i=0; i<spheres.size(); i++)
-    spheres[i].draw( WCS_to_VCS, VCS_to_CCS, lightDir, (spheres[i].constraintRectangles.size() == 0 ? lightRed : greenish) );
+    // Draw spheres
 
-  // Draw rectangles
-  
-  for (int i=0; i<rectangles.size(); i++)
-    rectangles[i].draw( WCS_to_VCS, VCS_to_CCS, lightDir, (i > 0 ? cerulean : deeperCerulean) );
+    for (int i = 0; i < spheres.size(); i++)
+        spheres[i].draw(WCS_to_VCS, VCS_to_CCS, lightDir,
+                        (spheres[i].constraintRectangles.size() == 0 ? lightRed : greenish));
 
-  // Draw a line between each sphere and its closest point on another object (for debugging)
+    // Draw rectangles
 
-  if (showClosest) {
-    
-    vec3 *segments = new vec3[ 2 * spheres.size() ];
-    int n = 0;
-  
-    for (int i=0; i<spheres.size(); i++)
-      if (spheres[i].minDist != FLT_MAX) {
-	segments[n++] = spheres[i].state.x;
-	segments[n++] = spheres[i].contactPoint;
-      }
+    for (int i = 0; i < rectangles.size(); i++)
+        rectangles[i].draw(WCS_to_VCS, VCS_to_CCS, lightDir, (i > 0 ? cerulean : deeperCerulean));
 
-    mat4 MVP = VCS_to_CCS * WCS_to_VCS;
-    segs->drawSegs( GL_LINES, segments, vec3( 0.75, 0.9, 0.1 ), NULL, n, WCS_to_VCS, MVP, lightDir );
+    // Draw a line between each sphere and its closest point on another object (for debugging)
 
-    // Clean up
-    
-    delete [] segments;
-  }
+    if (showClosest) {
+        vec3 *segments = new vec3[2 * spheres.size()];
+        int n = 0;
+
+        for (int i = 0; i < spheres.size(); i++)
+            if (spheres[i].minDist != FLT_MAX) {
+                segments[n++] = spheres[i].state.x;
+                segments[n++] = spheres[i].contactPoint;
+            }
+
+        mat4 MVP = VCS_to_CCS * WCS_to_VCS;
+        segs->drawSegs(GL_LINES, segments, vec3(0.75, 0.9, 0.1), NULL, n, WCS_to_VCS, MVP, lightDir);
+
+        // Clean up
+
+        delete[] segments;
+    }
 }
-
