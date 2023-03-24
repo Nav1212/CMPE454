@@ -189,8 +189,8 @@ void World::integrate(State *yStart, State *yEnd, float deltaT, bool &collisionA
     y->q = yStart->q;
     y->w = yStart->w;
 
-    yDeriv->x = yStart->v;                           // velocity
-    yDeriv->v = GRAVITY_ACCEL;                       // acceleration
+    yDeriv->x = yStart->v;                                 // velocity
+    yDeriv->v = GRAVITY_ACCEL;                             // acceleration
     yDeriv->q = quaternion(Qw.x, Qw.y, Qw.z, Qw.w);  // Qw
     yDeriv->w = vec3(0, 0, 0);
 
@@ -343,40 +343,6 @@ float World::updateStateByDeltaT(float deltaT)
         actualDeltaT = 0;
 
         // [YOUR CODE HERE]
-
-        //
-        //
-        //   F          F    F  F  T       T
-        //   ^          ^    ^  ^  ^       ^
-        //   -------------------------------
-        //   t                  |  |       t+∆t
-        //                      ^^^^
-        //                       t*
-
-        float left = 0.0;
-        float right = deltaT;
-        float tStar;
-
-        while (left <= right) {
-            float newDeltaT = left + (right - left) / 2;
-
-            integrate(yStart, yEnd, newDeltaT, collisionAtEnd, &collisionSphere, &collisionObject);
-
-            if (right - left <= MIN_DELTA_T_FOR_COLLISIONS) {
-                // found t*
-                // update state
-                tStar = newDeltaT;
-                break;
-            } else if (!collisionAtEnd) {
-                // no collision at 'newDeltaT'
-                left = newDeltaT;
-            } else {
-                // collision at 'newDeltaT'
-                right = newDeltaT;
-            }
-        }
-
-        actualDeltaT = deltaT + left;
 
         // Set the sphere states to that at the START of the interval so
         // that collision has not yet occurred.  Since the objects DO NOT
