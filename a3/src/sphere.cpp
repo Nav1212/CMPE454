@@ -34,10 +34,9 @@ float Sphere::distToRectangle(Rectangle &rectangle, vec3 *closestPoint)
     // find the closestPoint and the distance.
 
     // [YOUR CODE HERE: REPLACE THE CODE BELOW]
-
-    // if (sphereCentre.z >= 0 && sphereCentre.z <= this->radius) {
-    if (sphereCentre.x > -rectangle.xDim / 2.0f && sphereCentre.x < rectangle.xDim / 2.0f &&
-        sphereCentre.y > -rectangle.yDim / 2.0f && sphereCentre.y < rectangle.yDim / 2.0f) {
+        
+    if (sphereCentre.x+this->radius > -rectangle.xDim / 2.0f && sphereCentre.x - this->radius< rectangle.xDim / 2.0f &&
+        sphereCentre.y+this->radius > -rectangle.yDim / 2.0f && sphereCentre.y - this->radius < rectangle.yDim / 2.0f) {
         float xClamp = std::max(-rectangle.xDim / 2.0f, std::min(sphereCentre.x, rectangle.xDim / 2.0f));
         float yClamp = std::max(-rectangle.yDim / 2.0f, std::min(sphereCentre.y, rectangle.yDim / 2.0f));
         vec3 closestPointInRectangleCoords(xClamp, yClamp, 0);
