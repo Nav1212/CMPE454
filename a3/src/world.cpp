@@ -15,7 +15,7 @@
 
 #define PIT_DEPTH 0.2
 
-#define NUM_SPHERES_TO_GEN 20
+#define NUM_SPHERES_TO_GEN 2
 #define MIN_SPHERE_RADIUS 0.08
 #define MAX_SPHERE_RADIUS 0.12
 #define MIN_DIST_BETWEEN_SPHERES 0.1
@@ -511,7 +511,7 @@ void World::resolveCollision(Sphere *sphere, Object *otherObject)
         // [YOUR CODE HERE: REPLACE THE CODE BELOW]
         // Find a normal to the tangent plane between the spheres
 
-        vec3 n = (sphere2->state.x - sphere->state.x).normalize();
+        vec3 n = (sphere2->contactPoint -sphere->contactPoint).normalize();
 
         // Find the velocity in the normal direction after the collisions
 
@@ -526,9 +526,9 @@ void World::resolveCollision(Sphere *sphere, Object *otherObject)
 
         // Update sphere velocities in their respective 'state.v'
 
-        sphere->state.v = sphere->state.v+(v1a - v1b) * n;
-        sphere2->state.v = sphere2->state.v+(v2a - v2b) * n;
-
+        sphere->state.v = sphere->state.v=sphere->state.v +(v1a-v1b)*n;
+        sphere2->state.v  = sphere->state.v + (v1a - v1b)*n;
+        
         // [END OF YOUR CODE ABOVE]
 
     } else {
@@ -544,24 +544,22 @@ void World::resolveCollision(Sphere *sphere, Object *otherObject)
         // of the rectangle, as the plane in these cases is NOT the plane
         // of the rectangle.
 
-        vec3 n = vec3(9999, 9999, 9999);
+        vec3 n = (sphere->state.x - sphere->contactPoint).normalize();
 
         // Find the velocity in the normal direction after the collisions
 
-        float v1b = 9999;  // sphere velocity before in normal direction
-        float v2b = 9999;  // rectangle velocity before in normal direction
+        float v1b = sphere->state.v*n;  // sphere velocity before in normal direction
 
-        float m1 = 9999;  // sphere mass
+        float m1 = sphere->mass();  // sphere mass
 
-        float m2 = 9999;  // rectangle mass.  NOTE THAT THIS MASS IS VERY
+        float m2 = rectangle->mass();  // rectangle mass.  NOTE THAT THIS MASS IS VERY
                           // LARGE AND CAN BE USED AS IF THE RECTANGLE IS
                           // A MOVING OBJECT.  DO THIS!  See rectangle.h
-
-        float v1a = 9999;  // sphere velocity AFTER in normal direction
-
+              
+        float v1a = v1b- COEFF_OF_RESTITUTION *1/(m1)*(v1b);  // sphere velocity AFTER in normal direction
         // Update state of sphere velocity only.  Do not change velocity of rectangle.
 
-        sphere->state.v = vec3(9999, 9999, 9999);  // sphere velocity AFTER
+        sphere->state.v = sphere->state.v+(v1a)*n;  // sphere velocity AFTER
 
         // [END OF YOUR CODE ABOVE]
 
