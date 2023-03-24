@@ -15,7 +15,7 @@
 
 #define PIT_DEPTH 0.2
 
-#define NUM_SPHERES_TO_GEN 10
+#define NUM_SPHERES_TO_GEN 30
 #define MIN_SPHERE_RADIUS 0.08
 #define MAX_SPHERE_RADIUS 0.12
 #define MIN_DIST_BETWEEN_SPHERES 0.1
@@ -177,27 +177,14 @@ void World::integrate(State *yStart, State *yEnd, float deltaT, bool &collisionA
 
         // [YOUR CODE HERE]
 
-        float q0 = yStart[i].q.q0;
-        float q1 = yStart[i].q.q1;
-        float q2 = yStart[i].q.q2;
-        float q3 = yStart[i].q.q3;
-
-        mat4 Q;
-        Q.rows[0] = vec4(-q1, -q2, -q3, 0);
-        Q.rows[1] = vec4(q0, -q3, q2, 0);
-        Q.rows[2] = vec4(q3, q0, q1, 0);
-        Q.rows[3] = vec4(-q2, q1, q0, 0);
-        Q = 0.5 * Q;
-        vec4 Qw = Q * vec4(yStart[i].w, 0);
-
         y[i].x = yStart[i].x;
         y[i].v = yStart[i].v;
         y[i].q = yStart[i].q;
         y[i].w = yStart[i].w;
 
-        yDeriv[i].x = yStart[i].v;                           // velocity
-        yDeriv[i].v = GRAVITY_ACCEL;                         // acceleration
-        yDeriv[i].q = quaternion(Qw.x, Qw.y, Qw.z, Qw.w);    // Qw
+        yDeriv[i].x = yStart[i].v;                          // velocity
+        yDeriv[i].v = GRAVITY_ACCEL;                        // acceleration
+        yDeriv[i].q = yStart[i].q.derivative(yStart[i].w);  // Qw
         yDeriv[i].w = vec3(0, 0, 0);
 
         // Integrate: Compute yEnd = yStart + deltaT * yDeriv
@@ -210,19 +197,19 @@ void World::integrate(State *yStart, State *yEnd, float deltaT, bool &collisionA
         yEnd[i].x = y[i].x + (deltaT * yDeriv[i].x);
         yEnd[i].v = y[i].v + (deltaT * yDeriv[i].v);
         yEnd[i].q = quaternion(y[i].q.q0 + (deltaT * yDeriv[i].q.q0), y[i].q.q1 + (deltaT * yDeriv[i].q.q1),
-            y[i].q.q2 + (deltaT * yDeriv[i].q.q2), y[i].q.q3 + (deltaT * yDeriv[i].q.q3));
+                               y[i].q.q2 + (deltaT * yDeriv[i].q.q2), y[i].q.q3 + (deltaT * yDeriv[i].q.q3));
         yEnd[i].w = y[i].w + (deltaT * yDeriv[i].w);
 
         // Copy yEnd state into sphere states
         copyState(&yEnd[i], &spheres[i]);
     }
 
-        // Check for collisions
+    // Check for collisions
 
-        collisionAtEnd = findCollisions(collisionSphere, collisionObject);
+    collisionAtEnd = findCollisions(collisionSphere, collisionObject);
 
-        // Clean up
-    
+    // Clean up
+
     delete[] y;
     delete[] yDeriv;
 }
@@ -348,7 +335,7 @@ float World::updateStateByDeltaT(float deltaT)
 
         // [YOUR CODE HERE]
 
-        //
+        //  Binary search:
         //
         //   F          F    F  F  T       T
         //   ^          ^    ^  ^  ^       ^
@@ -362,31 +349,22 @@ float World::updateStateByDeltaT(float deltaT)
         float tStar = 0.0;
 
         while (left <= right) {
-            // cout << spheres[0].state.x.z - spheres[0].radius << endl;
             float newDeltaT = left + (right - left) / 2;
 
             integrate(yStart, yEnd, newDeltaT, collisionAtEnd, &collisionSphere, &collisionObject);
 
-            if (right - left <= MIN_DELTA_T_FOR_COLLISIONS) {
-                // found t*
-                // update state
+            if (right - left <= MIN_DELTA_T_FOR_COLLISIONS) {  // found t*
                 tStar = newDeltaT;
                 break;
-            } else if (!collisionAtEnd) {
-                // no collision at 'newDeltaT'
+            } else if (!collisionAtEnd) {  // no collision at 'newDeltaT'
                 left = newDeltaT;
-            } else {
-                // collision at 'newDeltaT'
+            } else {  // collision at 'newDeltaT'
                 right = newDeltaT;
             }
         }
 
+        // updating actualDeltaT
         actualDeltaT = deltaT + left;
-
-        // cout << right - left << endl;
-        // cout << tStar << endl;
-        // cout << deltaT << endl;
-        // cout << actualDeltaT << endl;
 
         // Set the sphere states to that at the START of the interval so
         // that collision has not yet occurred.  Since the objects DO NOT
@@ -455,7 +433,7 @@ bool World::findCollisions(Sphere **collisionSphere, Object **collisionObject)
 
                 float relativeVelocitySign = (spheres[j].state.v - spheres[i].state.v) * centreToCentre;
 
-                if (relativeVelocitySign < 0 ) {  // < 0 if coming together, > 0 is moving apart
+                if (relativeVelocitySign < 0) {  // < 0 if coming together, > 0 is moving apart
 
                     if (dist < minDist) {
                         minDist = dist;
@@ -485,7 +463,7 @@ bool World::findCollisions(Sphere **collisionSphere, Object **collisionObject)
                     (((spheres[i].state.x - rectangles[j].centre) * rectangles[j].normal) * rectangles[j].normal) *
                     spheres[i].state.v;
 
-                if (relativeVelocitySign < 0 ) {  // < 0 if coming together, > 0 is moving apart
+                if (relativeVelocitySign < 0) {  // < 0 if coming together, > 0 is moving apart
 
                     if (dist < minDist) {
                         minDist = dist;
@@ -522,23 +500,23 @@ void World::resolveCollision(Sphere *sphere, Object *otherObject)
 
         // Find a normal to the tangent plane between the spheres
 
-        vec3 n = (sphere->state.x-sphere->contactPoint-(sphere2->state.x-sphere2->contactPoint)).normalize();
+        vec3 n = (sphere->state.x - sphere->contactPoint - (sphere2->state.x - sphere2->contactPoint)).normalize();
 
         // Find the velocity in the normal direction after the collisions
 
         float v1b = sphere->state.v * n;   // sphere 1 velocity before in normal direction
         float v2b = sphere2->state.v * n;  // sphere 2 velocity before in normal direction
 
-        float m1 = sphere->mass();  // sphere 1 mass
+        float m1 = sphere->mass();   // sphere 1 mass
         float m2 = sphere2->mass();  // sphere 2 mass
 
-        float v1a = v1b-(v1b-v2b)*m1/m2;  // sphere 1 velocity AFTER in normal direction
-        float v2a = v2b-(v2b-v1b)*m2/m1;   // sphere 2 velocity AFTER in normal direction
+        float v1a = v1b - (v1b - v2b) * m1 / m2;  // sphere 1 velocity AFTER in normal direction
+        float v2a = v2b - (v2b - v1b) * m2 / m1;  // sphere 2 velocity AFTER in normal direction
 
         // Update sphere velocities in their respective 'state.v'
 
-        sphere->state.v = sphere->state.v + (v1a - v1b) * n;  // sphere 1 velocity AFTER
-        sphere2->state.v = sphere2->state.v + (v2a - v2b) * n;                   // sphere 2 velocity AFTER
+        sphere->state.v = sphere->state.v + (v1a - v1b) * n;    // sphere 1 velocity AFTER
+        sphere2->state.v = sphere2->state.v + (v2a - v2b) * n;  // sphere 2 velocity AFTER
 
         // [END OF YOUR CODE ABOVE]
 
@@ -555,11 +533,9 @@ void World::resolveCollision(Sphere *sphere, Object *otherObject)
         // of the rectangle, as the plane in these cases is NOT the plane
         // of the rectangle.
 
-        // vec3 n = rectangle->normal;  // for now
         vec3 n = (sphere->state.x - sphere->contactPoint).normalize();
 
         // Find the velocity in the normal direction after the collisions
-        // COEFF_OF_RESTITUTION
 
         float v1b = sphere->state.v * n;  // sphere velocity before in normal direction
         float v2b = 0.0;                  // rectangle velocity before in normal direction
@@ -570,12 +546,7 @@ void World::resolveCollision(Sphere *sphere, Object *otherObject)
                                        // LARGE AND CAN BE USED AS IF THE RECTANGLE IS
                                        // A MOVING OBJECT.  DO THIS!  See rectangle.h
 
-        // float v1bPerp = sphere->state.v.y;
-        // float v1bPar = sphere->state.v.x;
-        // float v1a = (COEFF_OF_RESTITUTION * v1bPerp) + v1bPar;  // sphere velocity AFTER in normal direction
-        // float v1a = v1b + COEFF_OF_RESTITUTION * 1 / (m1) * (v1b - v2b);
-        // float v1a = (m2 * (0 - v2b)) / m1 + v1b;
-        float v1a = COEFF_OF_RESTITUTION * (v1b - v2b);
+        float v1a = COEFF_OF_RESTITUTION * (v1b - v2b);  // sphere velocity AFTER in normal direction
 
         // Update state of sphere velocity only.  Do not change velocity of rectangle.
 
