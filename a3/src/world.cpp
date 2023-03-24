@@ -355,9 +355,10 @@ float World::updateStateByDeltaT(float deltaT)
 
         float left = 0.0;
         float right = deltaT;
-        float tStar;
+        float tStar = 0.0;
 
         while (left <= right) {
+            // cout << spheres[0].state.x.z - spheres[0].radius << endl;
             float newDeltaT = left + (right - left) / 2;
 
             integrate(yStart, yEnd, newDeltaT, collisionAtEnd, &collisionSphere, &collisionObject);
@@ -377,6 +378,11 @@ float World::updateStateByDeltaT(float deltaT)
         }
 
         actualDeltaT = deltaT + left;
+
+        // cout << right - left << endl;
+        // cout << tStar << endl;
+        // cout << deltaT << endl;
+        // cout << actualDeltaT << endl;
 
         // Set the sphere states to that at the START of the interval so
         // that collision has not yet occurred.  Since the objects DO NOT
@@ -512,23 +518,23 @@ void World::resolveCollision(Sphere *sphere, Object *otherObject)
 
         // Find a normal to the tangent plane between the spheres
 
-        vec3 n = vec3(9999, 9999, 9999);
+        vec3 n = (sphere2->contactPoint - sphere->contactPoint).normalize();
 
         // Find the velocity in the normal direction after the collisions
 
-        float v1b = 9999;  // sphere 1 velocity before in normal direction
-        float v2b = 9999;  // sphere 2 velocity before in normal direction
+        float v1b = sphere->state.v * n;   // sphere 1 velocity before in normal direction
+        float v2b = sphere2->state.v * n;  // sphere 2 velocity before in normal direction
 
-        float m1 = 9999;  // sphere 1 mass
-        float m2 = 9999;  // sphere 2 mass
+        float m1 = sphere->mass();  // sphere 1 mass
+        float m2 = sphere->mass();  // sphere 2 mass
 
-        float v1a = 9999;  // sphere 1 velocity AFTER in normal direction
-        float v2a = 9999;  // sphere 2 velocity AFTER in normal direction
+        float v1a = v1b + COEFF_OF_RESTITUTION * 1 / (m1) * (v1b - v2b);  // sphere 1 velocity AFTER in normal direction
+        float v2a = v2b + COEFF_OF_RESTITUTION * 1 / (m1) * (v1b - v2b);  // sphere 2 velocity AFTER in normal direction
 
         // Update sphere velocities in their respective 'state.v'
 
-        sphere->state.v = vec3(9999, 9999, 9999);   // sphere 1 velocity AFTER
-        sphere2->state.v = vec3(9999, 9999, 9999);  // sphere 2 velocity AFTER
+        sphere->state.v = sphere->state.v = sphere->state.v + (v1a - v1b) * n;  // sphere 1 velocity AFTER
+        sphere2->state.v = sphere->state.v + (v1a - v1b) * n;                   // sphere 2 velocity AFTER
 
         // [END OF YOUR CODE ABOVE]
 
@@ -545,7 +551,8 @@ void World::resolveCollision(Sphere *sphere, Object *otherObject)
         // of the rectangle, as the plane in these cases is NOT the plane
         // of the rectangle.
 
-        vec3 n = rectangle->normal;  // for now
+        // vec3 n = rectangle->normal;  // for now
+        vec3 n = (sphere->state.x - sphere->contactPoint).normalize();
 
         // Find the velocity in the normal direction after the collisions
         // COEFF_OF_RESTITUTION
@@ -559,13 +566,17 @@ void World::resolveCollision(Sphere *sphere, Object *otherObject)
                                        // LARGE AND CAN BE USED AS IF THE RECTANGLE IS
                                        // A MOVING OBJECT.  DO THIS!  See rectangle.h
 
-        float v1bPerp = sphere->state.v.y;
-        float v1bPar = sphere->state.v.x;
-        float v1a = (COEFF_OF_RESTITUTION * v1bPerp) + v1bPar;  // sphere velocity AFTER in normal direction
+        // float v1bPerp = sphere->state.v.y;
+        // float v1bPar = sphere->state.v.x;
+        // float v1a = (COEFF_OF_RESTITUTION * v1bPerp) + v1bPar;  // sphere velocity AFTER in normal direction
+        // float v1a = v1b + COEFF_OF_RESTITUTION * 1 / (m1) * (v1b - v2b);
+        // float v1a = (m2 * (0 - v2b)) / m1 + v1b;
+        float v1a = COEFF_OF_RESTITUTION * (v1b - v2b);
 
         // Update state of sphere velocity only.  Do not change velocity of rectangle.
 
-        sphere->state.v = v1a * n;  // sphere velocity AFTER
+        // sphere->state.v = v1a * n;  // sphere velocity AFTER
+        sphere->state.v = sphere->state.v + (v1a - v1b) * n;  // sphere velocity AFTER
 
         // [END OF YOUR CODE ABOVE]
 
