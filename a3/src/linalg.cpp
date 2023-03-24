@@ -749,7 +749,7 @@ float pointToEdgeDistance(vec3 point, vec3 edgeTail, vec3 edgeHead, vec3* closes
     float pointtoend = point.distanceToLine(edgeTail, edgeHead);
     vec3 edgeVec = edgeHead - edgeTail;
     vec3 pointVec = point - edgeTail;
-    float projection = pointVec * pointVec.normalize();
+    float projection = pointVec * edgeVec.normalize();
     if (projection <= 0) {
         *closestPoint = edgeTail;
     } else if (projection >= edgeVec.length()) {
