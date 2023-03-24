@@ -532,8 +532,8 @@ void World::resolveCollision(Sphere *sphere, Object *otherObject)
         float m1 = sphere->mass();  // sphere 1 mass
         float m2 = sphere2->mass();  // sphere 2 mass
 
-        float v1a = 1 / m1 * (m1*(COEFF_OF_RESTITUTION-1)*v1b);  // sphere 1 velocity AFTER in normal direction
-        float v2a = 1 / m2 * -(m2* (COEFF_OF_RESTITUTION - 1) * v2b);   // sphere 2 velocity AFTER in normal direction
+        float v1a = COEFF_OF_RESTITUTION * (v1b - v2b);  // sphere 1 velocity AFTER in normal direction
+        float v2a = COEFF_OF_RESTITUTION * (v2b - v1b);   // sphere 2 velocity AFTER in normal direction
 
         // Update sphere velocities in their respective 'state.v'
 
