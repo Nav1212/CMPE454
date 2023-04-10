@@ -1,0 +1,73 @@
+CISC 454 Assignment 4
+Due Friday, April 7 at noon
+
+
+EXTENSION: YOU MAY SUBMIT BEFORE FRIDAY, APRIL 14 AT NOON WITHOUT PENALTY.
+
+
+You are to add code to a raytracer to do the following:
+
+  Pixel antialising with jittering
+  Glossiness
+  Soft shadows from area light sources
+
+  See "YOUR CODE HERE" in scene.cpp.
+
+  Change only the code in scene.cpp.
+
+
+How to run the code
+
+  On Linux or MacOS, execute
+
+    ./rt inputFilename
+
+  The inputFilename is one of the scenes in the 'worlds' directory,
+  like '../worlds/teapot'.
+
+  On Windows with Visual Studio, OPEN THE ASSIGNMENT BY DOUBLE-CLICKING
+  ON 'rt.vcxproj' IN THE 'windows' FOLDER.
+
+  In Visual Studio, put the inputFilename in the project properties as
+  a command-line argument in the Debugging section.
+
+
+In the raytracing window
+
+  As long as you're dragging the mouse to shift the viewpoint, the
+  scene will be redrawn quickly using OpenGL.  As soon as you stop
+  dragging the mouse, the raytracing code is called, and eventually a
+  raytraced image is shown.  You can drag the mouse again while the
+  raytracing is being done; the raytracing will be restarted as soon
+  as you stop dragging.
+
+  Note that the raytracing pixels are 2x2 normal pixels (controlled by
+  PIXEL_SCALE in scene.h).  This is to show the effects of antialiasing.
+  You might want to set PIXEL_SCALE to 4 when debugging your
+  antialiasing to make the effect more visible.  You can also use
+  CTRL-left mouse to zoom in on pixels.
+
+  In the rendering window, press '?' to get a list of options in the
+  console window.  These options allow you to change many things,
+  including the glossiness and the number of sample rays.
+
+  Click the mouse on a pixel to see the rays traced through that
+  pixel.  You can use the right mouse button to rotate the scene to
+  see the rays from a different viewpoint.  The rays are coloured:
+
+    blue:   a ray that hit an object
+    grey:   a ray that did not hit an object
+    yellow: a shadow ray that was sent toward a point light source
+
+
+To Hand In
+
+  Make a directory called 'a4'.  In that directory, put
+
+    - scene.h
+    - schene.cpp
+    - README.txt     with your name(s) and netID(s)
+
+  Create a zip archive z4.zip of the a4 directory and submit it to OnQ.
+
+  Follow these submission instructions exactly.
