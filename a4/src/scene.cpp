@@ -1,120 +1,114 @@
 // scene.cpp
 
-
 #include "headers.h"
 #ifndef WIN32
-  #include <unistd.h>
+#include <unistd.h>
 #endif
 
+#include <math.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
-#include "scene.h"
-#include "rtWindow.h"
+
 #include "arcball.h"
-#include "sphere.h"
-#include "triangle.h"
-#include "wavefrontobj.h"
+#include "arrow.h"
 #include "light.h"
-#include "strokefont.h"
 #include "main.h"
 #include "material.h"
-#include "arrow.h"
-
+#include "rtWindow.h"
+#include "scene.h"
+#include "sphere.h"
+#include "strokefont.h"
+#include "triangle.h"
+#include "wavefrontobj.h"
 
 #ifndef MAXFLOAT
-  #define MAXFLOAT 9999999
+#define MAXFLOAT 9999999
 #endif
-
 
 #define UPDATE_INTERVAL 0.05  // update the screen with each 5% of RT progress
 
-#define INDENT(n) { for (int i=0; i<(n); i++) cout << " "; }
+#define INDENT(n)                                  \
+    {                                              \
+        for (int i = 0; i < (n); i++) cout << " "; \
+    }
 
-vec3 backgroundColour(0,0,0);
-vec3 blackColour(0,0,0);
+vec3 backgroundColour(0, 0, 0);
+vec3 blackColour(0, 0, 0);
 
 #define MAX_NUM_LIGHTS 4
 
-
 // Display everything
 
-void Scene::display() 
+void Scene::display()
 
 {
-  mat4 WCS_to_VCS = win->arcball->V;
+    mat4 WCS_to_VCS = win->arcball->V;
 
-  mat4 VCS_to_CCS = perspective( win->fovy, 
-				 windowWidth/(float)windowHeight, 
-				 MAX( 0.1, win->arcball->distToCentre - 100 ),
-				 win->arcball->distToCentre + 100 );
+    mat4 VCS_to_CCS = perspective(win->fovy, windowWidth / (float)windowHeight,
+                                  MAX(0.1, win->arcball->distToCentre - 100), win->arcball->distToCentre + 100);
 
-  draw_RT_and_GL( WCS_to_VCS, VCS_to_CCS );
+    draw_RT_and_GL(WCS_to_VCS, VCS_to_CCS);
 }
-
 
 // Find the first object intersected
 
-bool Scene::findFirstObjectInt( vec3 rayStart, vec3 rayDir, int thisObjIndex, int thisObjPartIndex,
-                                vec3 &P, vec3 &N, vec3 &T, float &param, int &objIndex, int &objPartIndex, Material *&mat, int lightIndex )
+bool Scene::findFirstObjectInt(vec3 rayStart, vec3 rayDir, int thisObjIndex, int thisObjPartIndex, vec3 &P, vec3 &N,
+                               vec3 &T, float &param, int &objIndex, int &objPartIndex, Material *&mat, int lightIndex)
 
 {
-  if (storingRays)
-    storedRays.add( rayStart );
+    if (storingRays) storedRays.add(rayStart);
 
-  bool hit = false;
+    bool hit = false;
 
-  float maxParam = MAXFLOAT;
+    float maxParam = MAXFLOAT;
 
-  for (int i=0; i<objects.size(); i++) {
+    for (int i = 0; i < objects.size(); i++) {
+        WavefrontObj *wfo = dynamic_cast<WavefrontObj *>(objects[i]);
 
-    WavefrontObj* wfo = dynamic_cast<WavefrontObj*>( objects[i] );
+        // don't check for int with the originating object for non-wavefront objects (since such objects are convex)
 
-     // don't check for int with the originating object for non-wavefront objects (since such objects are convex)
-    
-    if (wfo || i != thisObjIndex) {
-      
-      vec3 point, normal, texcoords;
-      float t;
-      Material *intMat;
-      int intPartIndex;
+        if (wfo || i != thisObjIndex) {
+            vec3 point, normal, texcoords;
+            float t;
+            Material *intMat;
+            int intPartIndex;
 
-      if (objects[i]->rayInt( rayStart, rayDir, ((i != thisObjIndex) ? -1 : thisObjPartIndex), maxParam, point, normal, texcoords, t, intMat, intPartIndex )) {
+            if (objects[i]->rayInt(rayStart, rayDir, ((i != thisObjIndex) ? -1 : thisObjPartIndex), maxParam, point,
+                                   normal, texcoords, t, intMat, intPartIndex)) {
+                P = point;
+                N = normal;
+                T = texcoords;
+                param = t;
+                objIndex = i;
+                objPartIndex = intPartIndex;
+                mat = intMat;
 
-        P = point;
-        N = normal;
-        T = texcoords;
-        param = t;
-        objIndex = i;
-        objPartIndex = intPartIndex;
-        mat = intMat;
-
-        maxParam = t; // In future, don't intersect any farther than this
-        hit = true;
-      }
+                maxParam = t;  // In future, don't intersect any farther than this
+                hit = true;
+            }
+        }
     }
-  }
 
-  if (storingRays) {
-
-    if (hit) {
-      storedRays.add( P );
-      if (lightIndex >= 0) {
-        storedRayColours.add( vec3(.843,.710,.278) ); // GOLD: shadow ray toward a light that is (perhaps) blocked
-      } else
-        storedRayColours.add( vec3(.1,.7,.7) ); // CYAN: normal ray that hits something
-    } else {
-      if (lightIndex >= 0) {
-	storedRays.add( lights[lightIndex]->position );
-        storedRayColours.add( vec3(.843,.710,.278) ); // GOLD: shadow ray toward a light that is NOT blocked
-      } else {
-        storedRays.add( rayStart+sceneScale*2*rayDir );
-        storedRayColours.add( vec3(.3,.3,.3) ); // GREY: normal ray that misses
-      }
+    if (storingRays) {
+        if (hit) {
+            storedRays.add(P);
+            if (lightIndex >= 0) {
+                storedRayColours.add(
+                    vec3(.843, .710, .278));  // GOLD: shadow ray toward a light that is (perhaps) blocked
+            } else
+                storedRayColours.add(vec3(.1, .7, .7));  // CYAN: normal ray that hits something
+        } else {
+            if (lightIndex >= 0) {
+                storedRays.add(lights[lightIndex]->position);
+                storedRayColours.add(vec3(.843, .710, .278));  // GOLD: shadow ray toward a light that is NOT blocked
+            } else {
+                storedRays.add(rayStart + sceneScale * 2 * rayDir);
+                storedRayColours.add(vec3(.3, .3, .3));  // GREY: normal ray that misses
+            }
+        }
     }
-  }
 
-  return hit;
+    return hit;
 }
 
 // Raytrace: This is the main raytracing routine which finds the first
@@ -123,63 +117,63 @@ bool Scene::findFirstObjectInt( vec3 rayStart, vec3 rayDir, int thisObjIndex, in
 //
 // This returns the colour received on the ray.
 
-vec3 Scene::raytrace( vec3 &rayStart, vec3 &rayDir, int depth, int thisObjIndex, int thisObjPartIndex )
+vec3 Scene::raytrace(vec3 &rayStart, vec3 &rayDir, int depth, int thisObjIndex, int thisObjPartIndex)
 
 {
-  // Terminate the ray?
+    // Terminate the ray?
 
-  // Terminate based on depth.  This leads to biased sampling.
-  // Russian Roulette would be better.
-  
-  depth++;
+    // Terminate based on depth.  This leads to biased sampling.
+    // Russian Roulette would be better.
 
-  if (depth > maxDepth)
-    return blackColour;
+    depth++;
 
-  // Find the closest object intersected
+    if (depth > maxDepth) return blackColour;
 
-  vec3     P, N, texcoords;
-  float    t;
-  int      objIndex, objPartIndex;
-  Material *mat;
+    // Find the closest object intersected
 
-  // Below, 'rayStart' is the ray staring point
-  //        'rayDir' is the direction of the ray
-  //        'thisObjIndex' is the index of the originating object
-  //        'thisObjPartIndex' is the index of the part on the originating object (e.g. the triangle)
-  //
-  // If a hit is made then at the intersection point:
-  //        'P' is the position
-  //        'N' is the normal
-  //        'texcoords' are the texture coordinates
-  //        't' is the ray parameter at intersection
-  //        'objIndex' is the index of the object that is hit
-  //        'objPartIndex' is the index of the part of object that is hit
-  //        'mat' is the material at the intersection point
-  
-  bool hit = findFirstObjectInt( rayStart, rayDir, thisObjIndex, thisObjPartIndex, P, N, texcoords, t, objIndex, objPartIndex, mat, -1 );
+    vec3 P, N, texcoords;
+    float t;
+    int objIndex, objPartIndex;
+    Material *mat;
 
-  // No intersection: Return background colour
+    // Below, 'rayStart' is the ray staring point
+    //        'rayDir' is the direction of the ray
+    //        'thisObjIndex' is the index of the originating object
+    //        'thisObjPartIndex' is the index of the part on the originating object (e.g. the triangle)
+    //
+    // If a hit is made then at the intersection point:
+    //        'P' is the position
+    //        'N' is the normal
+    //        'texcoords' are the texture coordinates
+    //        't' is the ray parameter at intersection
+    //        'objIndex' is the index of the object that is hit
+    //        'objPartIndex' is the index of the part of object that is hit
+    //        'mat' is the material at the intersection point
 
-  if (!hit) {
-    if (depth == 1)
-      return backgroundColour;	// no need to weight this output, as "depth == 1" ensures that it is the
-				// first ray from the eye.  No harm in weighting it, though.
-    else
-      return blackColour;
-  }
+    bool hit = findFirstObjectInt(rayStart, rayDir, thisObjIndex, thisObjPartIndex, P, N, texcoords, t, objIndex,
+                                  objPartIndex, mat, -1);
 
-  // Find reflection direction & incoming light from that direction
+    // No intersection: Return background colour
 
-  Object &obj = *objects[objIndex];
+    if (!hit) {
+        if (depth == 1)
+            return backgroundColour;  // no need to weight this output, as "depth == 1" ensures that it is the
+                                      // first ray from the eye.  No harm in weighting it, though.
+        else
+            return blackColour;
+    }
 
-  vec3 E = (-1 * rayDir).normalize();
-  vec3 R = (2 * (E * N)) * N - E;
+    // Find reflection direction & incoming light from that direction
 
-  float alpha;
-  vec3  colour = obj.textureColour( P, objPartIndex, alpha, texcoords );
+    Object &obj = *objects[objIndex];
 
-  vec3 kd = vec3( colour.x*mat->kd.x, colour.y*mat->kd.y, colour.z*mat->kd.z );
+    vec3 E = (-1 * rayDir).normalize();
+    vec3 R = (2 * (E * N)) * N - E;
+
+    float alpha;
+    vec3 colour = obj.textureColour(P, objPartIndex, alpha, texcoords);
+
+    vec3 kd = vec3(colour.x * mat->kd.x, colour.y * mat->kd.y, colour.z * mat->kd.z);
 
 #if 0
   if (debug) { // 'debug' is set when tracing through a pixel that the user right-clicked
@@ -192,166 +186,167 @@ vec3 Scene::raytrace( vec3 &rayStart, vec3 &rayDir, int depth, int thisObjIndex,
   }
 #endif
 
-  vec3 Iout = mat->Ie + vec3( mat->ka.x * Ia.x, mat->ka.y * Ia.y, mat->ka.z * Ia.z );
+    vec3 Iout = mat->Ie + vec3(mat->ka.x * Ia.x, mat->ka.y * Ia.y, mat->ka.z * Ia.z);
 
-  // Compute glossy reflection
+    // Compute glossy reflection
 
-  if (mat->g < 0 || mat->g > 1) {
-    cerr << "Material glossiness is outside the range [0,1]" << endl;
-    exit(1);
-  }
+    if (mat->g < 0 || mat->g > 1) {
+        cerr << "Material glossiness is outside the range [0,1]" << endl;
+        exit(1);
+    }
 
-  float g = mat->g;
+    float g = mat->g;
 
-  if (g == 1 || numRaySamples == 1) {
+    if (g == 1 || numRaySamples == 1) {
+        vec3 Iin = raytrace(P, R, depth, objIndex, objPartIndex);
 
-    vec3 Iin = raytrace( P, R, depth, objIndex, objPartIndex );
+        Iout = Iout + calcIout(N, R, E, E, kd, mat->ks, mat->n, Iin);
 
-    Iout = Iout + calcIout( N, R, E, E, kd, mat->ks, mat->n, Iin );
+    } else if (g > 0) {
+        // Glossy reflection
+        //
+        // Cast 'numRaySamples' random rays from P centred on direction R
+        // using glossiness 'g' to control the spread of the rays.  For
+        // glossiness 'g', the half angle of the cone of rays is
+        // arccos(g).  Average the *reflected* colours of the rays and add
+        // that average to Iout.  EACH INDIVIDUAL RAY has its own
+        // reflected colour according to Phong, which is determined by
+        // passing the individual ray through calcIout().
+        vec3 TotalGlossyIout = vec3(0, 0, 0);
+        float psi = g = 1 - (1 - g) / glossinessFactor;  // glossinessFactor is controlled by pressing 'G' or 'g'
 
-  } else if (g > 0) {
+        lastGlossiness = g;  // for showing in the window's status message
 
-    // Glossy reflection
-    //
-    // Cast 'numRaySamples' random rays from P centred on direction R
-    // using glossiness 'g' to control the spread of the rays.  For
-    // glossiness 'g', the half angle of the cone of rays is
-    // arccos(g).  Average the *reflected* colours of the rays and add
-    // that average to Iout.  EACH INDIVIDUAL RAY has its own
-    // reflected colour according to Phong, which is determined by
-    // passing the individual ray through calcIout().
-      vec3 TotalGlossyIout = vec3(0, 0, 0);
-      float psi=g = 1 - (1-g) / glossinessFactor;   // glossinessFactor is controlled by pressing 'G' or 'g'
+        // ---------------- START YOUR CODE HERE ----------------
+        float halfangle = acos(g);
+        float dist = 1 / tan(halfangle);
+        float A, B, AandB;
+        vec3 Iin, u, v, temp, tempIout;
+        u = R.perp1();
+        v = R.perp2();
 
-    lastGlossiness = g; // for showing in the window's status message
+        for (int i = 0; i < numRaySamples; i++) {
+            // A and B  make sure that they are between 0 and 1 as a sum
+            A = 1;
+            B = 1;
+            AandB = pow(A, 2) + pow(B, 2);
+            while (AandB > 1) {
+                A = randIn01();
+                B = randIn01();
+                AandB = pow(A, 2) + pow(B, 2);
+            }
 
-   // ---------------- START YOUR CODE HERE ----------------
-    float halfangle = acos(g);
-    float dist = 1 / tan(halfangle);
-    float A,B, AandB;
-    vec3 Iin,u,v, temp;
-    u = R.perp1();
-    v = R.perp2();
-  
-    for (int i = 0; i < numRaySamples; i++) {
-        // A and B  make sure that they are between 0 and 1 as a sum
-        A = randIn01();
-        B = randIn01();
-        AandB = A*A+B*A;
-        while (AandB > 1) {
-            A = randIn01();
-            B = randIn01();
-            AandB= A * A + B * A;
+            temp = (dist * R + A * u + B * v).normalize();
+            Iin = raytrace(P, temp, depth, objIndex, objPartIndex);
+            tempIout = tempIout + calcIout(N, temp, E, E, kd, mat->ks, mat->n, Iin);
         }
-        
-        temp = (dist * R + A * u + B * v).normalize();
-        Iin= raytrace(P, temp, depth, objIndex, objPartIndex);
-        Iout = Iout+ calcIout(N, temp, E, E, vec3(0.0, 0.0, 0.0), mat->ks, mat->n, Iin);
+
+        Iout = Iout + (1.0f / numRaySamples) * tempIout;
+
+        // ---------------- END YOUR CODE HERE ----------------
     }
-    Iout = (1.0f/numRaySamples) * Iout;
-    // ---------------- END YOUR CODE HERE ----------------
-  }
-  
-  // Add contributions from point lights
 
-  for (int i=0; i<lights.size(); i++) {
-    Light &light = *lights[i];
+    // Add contributions from point lights
 
-    vec3 L = light.position - P; // point light
+    for (int i = 0; i < lights.size(); i++) {
+        Light &light = *lights[i];
 
-    if (N*L > 0) {
+        vec3 L = light.position - P;  // point light
 
-      float  Ldist = L.length();
-      L = (1.0/Ldist) * L;
+        if (N * L > 0) {
+            float Ldist = L.length();
+            L = (1.0 / Ldist) * L;
 
-      vec3 intP, intN, intTexCoords;
-      float intT;
-      int intObjIndex, intObjPartIndex;
-      Material *intMat;
+            vec3 intP, intN, intTexCoords;
+            float intT;
+            int intObjIndex, intObjPartIndex;
+            Material *intMat;
 
-      // Is there an object between P and the light?
-      //
-      // Note that 'intObjIndex' will return with the index of the
-      // object that is hit.  So the hit object is objects[intObjIndex].
+            // Is there an object between P and the light?
+            //
+            // Note that 'intObjIndex' will return with the index of the
+            // object that is hit.  So the hit object is objects[intObjIndex].
 
-      bool found = findFirstObjectInt( P, L, objIndex, objPartIndex, intP, intN, intTexCoords, intT, intObjIndex, intObjPartIndex, intMat, i );
+            bool found = findFirstObjectInt(P, L, objIndex, objPartIndex, intP, intN, intTexCoords, intT, intObjIndex,
+                                            intObjPartIndex, intMat, i);
 
-      if (!found || intT > Ldist) { // no object: Add contribution from this light
-        vec3 Lr = (2 * (L * N)) * N - L;
-        Iout = Iout + calcIout( N, L, E, Lr, kd, mat->ks, mat->n, light.colour);
-      }
+            if (!found || intT > Ldist) {  // no object: Add contribution from this light
+                vec3 Lr = (2 * (L * N)) * N - L;
+                Iout = Iout + calcIout(N, L, E, Lr, kd, mat->ks, mat->n, light.colour);
+            }
+        }
     }
-  }
 
-  // Add contributions from emitting triangles
+    // Add contributions from emitting triangles
 
-  for (int i=0; i<objects.size(); i++) {
-    if (i != thisObjIndex) {
-      Triangle* tri = dynamic_cast<Triangle*>( objects[i] );
-      if (tri && tri->mat->Ie.squaredLength() > 0) {
+    for (int i = 0; i < objects.size(); i++) {
+        if (i != thisObjIndex) {
+            Triangle *tri = dynamic_cast<Triangle *>(objects[i]);
+            if (tri && tri->mat->Ie.squaredLength() > 0) {
+                // Add to Iout the contribution from the emitting triangle, 'tri',
+                // which has colour 'tri->mat->Ie'.
+                //
+                // Apply Phong *separately* to *each* shadow ray that reaches the light.
+                //
+                // Use 'randIn01()' to generate uniform random floats in [0,1].
+                //
+                // Send 'numRaySamples' rays toward the emitting triangle.
 
-	// Add to Iout the contribution from the emitting triangle, 'tri',
-	// which has colour 'tri->mat->Ie'.
-	//
-	// Apply Phong *separately* to *each* shadow ray that reaches the light.
-	//
-	// Use 'randIn01()' to generate uniform random floats in [0,1].
-	//
-	// Send 'numRaySamples' rays toward the emitting triangle.
-	
-	// ---------------- BEGIN YOUR CODE HERE ----------------
-          float A = randIn01();
-          float B = randIn01();
-          float AandB = A * A + B * A;
-          while (AandB > 1) {
-              A = randIn01();
-              B = randIn01();
-              AandB = A * A + B * A;
-          }
-          Triangle *currentTri = (Triangle*) objects[i];
+                // ---------------- BEGIN YOUR CODE HERE ----------------
 
-           
-          //Iout=Iout+
-	// ---------------- END YOUR CODE HERE ----------------
-      }
+                // Soft shadows
+
+                // Rejection sampling:
+                // choose A, B in [0, 1]
+                float A = 1;
+                float B = 1;
+                while (A + B > 1) {
+                    A = randIn01();
+                    B = randIn01();
+                }
+
+                // point on triangle is P = (1-A-B)v0 + Av1 + Bv2
+
+                // Next, test t (distance) to see if the ray is blocked
+
+                Triangle *currentTri = (Triangle *)objects[i];
+
+                // Iout=Iout+
+                // ---------------- END YOUR CODE HERE ----------------
+            }
+        }
     }
-  }
 
-  return Iout;
+    return Iout;
 }
-
 
 // Calculate the outgoing intensity due to light Iin entering from
 // direction L and exiting to direction E, with normal N.  Reflection
-// direction R is provided, along with the material properties Kd, 
+// direction R is provided, along with the material properties Kd,
 // Ks, and n.
 //
 //       Iout = Iin * ( Kd (N.L) + Ks (R.V)^n )
 
-vec3 Scene::calcIout( vec3 N, vec3 L, vec3 E, vec3 R,
-                        vec3 Kd, vec3 Ks, float ns,
-                        vec3 In )
+vec3 Scene::calcIout(vec3 N, vec3 L, vec3 E, vec3 R, vec3 Kd, vec3 Ks, float ns, vec3 In)
 
 {
-  // Don't illuminate from the back of the surface
+    // Don't illuminate from the back of the surface
 
-  if (N * L <= 0)
-    return blackColour;
+    if (N * L <= 0) return blackColour;
 
-  // Both E and L are in front:
+    // Both E and L are in front:
 
-  vec3 Id = (L*N) * In;
+    vec3 Id = (L * N) * In;
 
-  vec3 Is;
+    vec3 Is;
 
-  if (R*E < 0)
-    Is = blackColour;           // Is = 0 from behind the
-  else                          // reflection direction
-    Is = pow( R*E, ns ) * In;
+    if (R * E < 0)
+        Is = blackColour;  // Is = 0 from behind the
+    else                   // reflection direction
+        Is = pow(R * E, ns) * In;
 
-  return vec3( Is.x*Ks.x+Id.x*Kd.x, Is.y*Ks.y+Id.y*Kd.y, Is.z*Ks.z+Id.z*Kd.z );
+    return vec3(Is.x * Ks.x + Id.x * Kd.x, Is.y * Ks.y + Id.y * Kd.y, Is.z * Ks.z + Id.z * Kd.z);
 }
-
 
 // Determine the colour of one pixel.  This is where the raytracing
 // actually starts.
@@ -360,192 +355,263 @@ vec3 Scene::calcIout( vec3 N, vec3 L, vec3 E, vec3 R,
 //
 //    (x+0.5,y+0.5) is the upper-right pixel corner.
 
-
-vec3 Scene::pixelColour( int x, int y )
+vec3 Scene::pixelColour(int x, int y)
 
 {
-  if (x == debugPixel.x && y == debugPixel.y) {
-    debug = true;
-    cout << "---------------- start debugging at pixel " << debugPixel << " ----------------" << endl;
-  }
+    if (x == debugPixel.x && y == debugPixel.y) {
+        debug = true;
+        cout << "---------------- start debugging at pixel " << debugPixel << " ----------------" << endl;
+    }
 
-  vec3 result;
+    vec3 result;
 
 #if 1
 
-  // This sends a single ray through the pixel centre.  Disable this
-  // section of code when your antialiasing code (below) is ready.
+    // This sends a single ray through the pixel centre.  Disable this
+    // section of code when your antialiasing code (below) is ready.
 
-  vec3 dir = (llCorner + x*right + y*up).normalize();
+    vec3 dir = (llCorner + x * right + y * up).normalize();
 
-  result = raytrace( eye->position, dir, 0, -1, -1 );
+    result = raytrace(eye->position, dir, 0, -1, -1);
 
 #else
 
-  // Antialias through a pixel using ('numPixelSamples' x
-  // 'numPixelSamples') rays.  Use a regular pattern in the subpixel
-  // centres if 'jitter' is false; use a jittered pattern in the
-  // subpixels if 'jitter' is true.
+    // Antialias through a pixel using ('numPixelSamples' x
+    // 'numPixelSamples') rays.  Use a regular pattern in the subpixel
+    // centres if 'jitter' is false; use a jittered pattern in the
+    // subpixels if 'jitter' is true.
 
+    // ---------------- START YOUR CODE HERE ----------------
 
-  // ---------------- START YOUR CODE HERE ----------------
+    float total = 0.0;
 
+    for (int row = 0; row < numPixelSamples; row++) {
+        for (int col = 0; col < numPixelSamples; col++) {
+        }
+    }
 
-  result = vec3(0,1,0); // replace this
-  
-  // ---------------- END YOUR CODE HERE ----------------
+    result = vec3(0, 1, 0);  // replace this
+
+    // ---------------- END YOUR CODE HERE ----------------
 
 #endif
 
+    if (storingRays) storingRays = false;
 
-  if (storingRays)
-    storingRays = false;
+    if (debug) {
+        cout << "---------------- stop debugging ----------------" << endl;
+        debug = false;
+    }
 
-  if (debug) {
-    cout << "---------------- stop debugging ----------------" << endl;
-    debug = false;
-  }
-
-  return result;
+    return result;
 }
-
 
 // Read the scene from an input stream
 
-void Scene::read( const char *basename, istream &in )
+void Scene::read(const char *basename, istream &in)
 
 {
-  char command[1000];
+    char command[1000];
 
-  while (in) {
+    while (in) {
+        skipComments(in);
+        in >> command;
+        if (!in || command[0] == '\0') break;
 
-    skipComments( in );
-    in >> command;
-    if (!in || command[0] == '\0')
-      break;
-    
-    skipComments( in );
+        skipComments(in);
 
-    if (strcmp(command,"sphere") == 0) {
+        if (strcmp(command, "sphere") == 0) {
+            Sphere *o = new Sphere();
+            in >> *o;
+            objects.add(o);
 
-      Sphere *o = new Sphere();
-      in >> *o;
-      objects.add( o );
-      
-    } else if (strcmp(command,"triangle") == 0) {
+        } else if (strcmp(command, "triangle") == 0) {
+            Triangle *o = new Triangle();
+            in >> *o;
+            objects.add(o);
 
-      Triangle *o = new Triangle();
-      in >> *o;
-      objects.add( o );
-      
-    } else if (strcmp(command,"material") == 0) {
+        } else if (strcmp(command, "material") == 0) {
+            Material *m = new Material(basename);
+            in >> *m;
+            materials.add(m);
 
-      Material *m = new Material(basename);
-      in >> *m;
-      materials.add( m );
-      
-    } else if (strcmp(command,"wavefront") == 0) {
+        } else if (strcmp(command, "wavefront") == 0) {
+            // Rely on the wavefront.cpp code to read this
 
-      // Rely on the wavefront.cpp code to read this
+            string filename;
+            in >> filename;
 
-      string filename;
-      in >> filename;
+            char pathname[1000];
+            sprintf(pathname, "%s/%s", basename, filename.c_str());
 
-      char pathname[1000];
-      sprintf( pathname, "%s/%s", basename, filename.c_str() );
+            WavefrontObj *o = new WavefrontObj(pathname);
+            objects.add(o);
 
-      WavefrontObj *o = new WavefrontObj( pathname );
-      objects.add( o );
+            // Update scene's scale
 
-      // Update scene's scale
+            if (o->obj->radius / 2 > sceneScale) sceneScale = o->obj->radius / 2;
 
-      if (o->obj->radius/2 > sceneScale)
-	sceneScale = o->obj->radius/2;
-      
-    } else if (strcmp(command,"light") == 0) {
+        } else if (strcmp(command, "light") == 0) {
+            Light *o = new Light();
+            in >> *o;
+            lights.add(o);
 
-      Light *o = new Light();
-      in >> *o;
-      lights.add( o );
-      
-    } else if (strcmp(command,"eye") == 0) {
+        } else if (strcmp(command, "eye") == 0) {
+            eye = new Eye();
+            in >> *eye;
 
-      eye = new Eye();
-      in >> *eye;
+            win->arcball->setV(eye->position, eye->lookAt, eye->upDir);
+            win->fovy = eye->fovy;
 
-      win->arcball->setV( eye->position, eye->lookAt, eye->upDir );
-      win->fovy = eye->fovy;
-      
-    } else {
-      
-      cerr << "Command '" << command << "' not recognized" << endl;
-      exit(-1);
+        } else {
+            cerr << "Command '" << command << "' not recognized" << endl;
+            exit(-1);
+        }
     }
-  }
 
-  if (lights.size() == 0) {
-    cerr << "No lights were provided in " << basename << " so the scene would be black." << endl;
-    exit(1);
-  }
+    if (lights.size() == 0) {
+        cerr << "No lights were provided in " << basename << " so the scene would be black." << endl;
+        exit(1);
+    }
 }
-
-
 
 // Output the whole scene (mainly for debugging the reader)
 
-
-void Scene::write( ostream &out )
+void Scene::write(ostream &out)
 
 {
-  out << *eye << endl;
+    out << *eye << endl;
 
-  for (int i=0; i<lights.size(); i++)
-    out << *lights[i] << endl;
+    for (int i = 0; i < lights.size(); i++) out << *lights[i] << endl;
 
-  for (int i=0; i<materials.size(); i++)
-    out << *materials[i] << endl;
+    for (int i = 0; i < materials.size(); i++) out << *materials[i] << endl;
 
-  for (int i=0; i<objects.size(); i++)
-    out << *objects[i] << endl;
+    for (int i = 0; i < objects.size(); i++) out << *objects[i] << endl;
 }
-
 
 char *Scene::statusMessage()
 
 {
-  static char buffer[1000];
+    static char buffer[1000];
 
-  if (lastGlossiness > 0)
-    sprintf( buffer, "%dx%d pixel rays, %d sample rays, glossiness %.6g%s", 
-	     numPixelSamples, numPixelSamples, (int) numRaySamples, lastGlossiness, (jitter ? ", jitter" : "") );
-  else
-    sprintf( buffer, "%dx%d pixel rays, %d sample rays%s", 
-	     numPixelSamples, numPixelSamples, (int) numRaySamples, (jitter ? ", jitter" : "") );
+    if (lastGlossiness > 0)
+        sprintf(buffer, "%dx%d pixel rays, %d sample rays, glossiness %.6g%s", numPixelSamples, numPixelSamples,
+                (int)numRaySamples, lastGlossiness, (jitter ? ", jitter" : ""));
+    else
+        sprintf(buffer, "%dx%d pixel rays, %d sample rays%s", numPixelSamples, numPixelSamples, (int)numRaySamples,
+                (jitter ? ", jitter" : ""));
 
-  return buffer;
+    return buffer;
 }
-
-
 
 // Draw the scene.  This sets things up and simply
 // calls pixelColour() for each pixel.
 
-
-void Scene::renderRT( bool restart )
+void Scene::renderRT(bool restart)
 
 {
-  static int nextx, nexty;
-  static float lastDisplayTime = 0;
+    static int nextx, nexty;
+    static float lastDisplayTime = 0;
 
-  mat4 WCS_to_VCS = win->arcball->V;
+    mat4 WCS_to_VCS = win->arcball->V;
 
-  mat4 VCS_to_CCS = perspective( win->fovy, 
-				 windowWidth/(float)windowHeight, 
-				 1, 1000 );
+    mat4 VCS_to_CCS = perspective(win->fovy, windowWidth / (float)windowHeight, 1, 1000);
 
-  if (restart) {
+    if (restart) {
+        srand(754376105);
 
-    srand( 754376105 );
+        // Copy the window eye into the scene eye
+
+        eye->position = win->arcball->eyePosition();
+        eye->lookAt = win->arcball->lookAt();
+        eye->upDir = win->arcball->upDirection();
+        eye->fovy = win->fovy;
+
+        vec3 rightDir = ((eye->lookAt - eye->position) ^ eye->upDir).normalize();
+
+        // Compute the image plane coordinate system
+
+        up = (2.0 * tan(eye->fovy / 2.0)) * eye->upDir.normalize();
+
+        right = (2.0 * tan(eye->fovy / 2.0) * windowWidth / (float)windowHeight) * rightDir.normalize();
+
+        llCorner = (eye->lookAt - eye->position).normalize() - 0.5 * up - 0.5 * right;
+
+        up = (1.0 / (float)(windowHeight - 1)) * up;
+        right = (1.0 / (float)(windowWidth - 1)) * right;
+
+        nextx = 0;
+        nexty = 0;
+
+        stop = false;
+
+        // Clear the RT image
+
+        if (rtImage != NULL) delete[] rtImage;
+
+        rtImage = NULL;
+    }
+
+    // Set up a new RT image
+
+    if (rtImage == NULL) {
+        rtImage = new vec4[(int)(windowWidth / pixelScale * windowHeight / pixelScale)];
+        for (int i = 0; i < windowWidth / pixelScale * windowHeight / pixelScale; i++)
+            rtImage[i] = vec4(0, 0, 0, 0);  // transparent
+    }
+
+    if (stop) return;
+
+    // Draw the next pixel
+
+    vec3 colour = pixelColour((nextx + 0.5) * pixelScale, (nexty + 0.5) * pixelScale);
+
+    rtImage[nextx + nexty * (int)(windowWidth / pixelScale)] = vec4(colour.x, colour.y, colour.z, 1);  // opaque
+
+    // Move (nextx,nexty) to the next pixel
+
+    nexty++;
+    if (nexty >= windowHeight / pixelScale) {
+        nexty = 0;
+        nextx++;
+
+        if (nextx >= windowWidth / pixelScale) {  // finished
+            draw_RT_and_GL(WCS_to_VCS, VCS_to_CCS);
+            nextx = 0;
+            stop = true;
+            cout << "\r           \r";
+            cout.flush();
+        }
+    } else {
+        float thisTime = getTime();
+        if (thisTime > lastDisplayTime + DISPLAY_INTERVAL) {
+            draw_RT_and_GL(WCS_to_VCS, VCS_to_CCS);
+            lastDisplayTime = thisTime;
+        }
+    }
+}
+
+// Render the scene with OpenGL
+
+void Scene::renderGL(mat4 &WCS_to_VCS, mat4 &VCS_to_CCS)
+
+{
+    mat4 WCS_to_CCS = VCS_to_CCS * WCS_to_VCS;
+
+    // create axes and segs here so that they are not created before
+    // the window is initialized
+
+    if (axes == NULL) axes = new Axes();
+
+    if (segs == NULL) segs = new Segs();
+
+    vec3 lightDir = vec3(1, 1, 1).normalize();
+
+    // Set up the framebuffer
+
+    glEnable(GL_DEPTH_TEST);
+    glClearColor(backgroundColour.x, backgroundColour.y, backgroundColour.z, 0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Copy the window eye into the scene eye
 
@@ -554,327 +620,207 @@ void Scene::renderRT( bool restart )
     eye->upDir = win->arcball->upDirection();
     eye->fovy = win->fovy;
 
-    vec3 rightDir = ((eye->lookAt - eye->position) ^ eye->upDir).normalize();
+    // Draw the objects
 
-    // Compute the image plane coordinate system
+    wavefrontGPU->activate();
 
-    up = (2.0 * tan( eye->fovy / 2.0 )) * eye->upDir.normalize();
+    // Need "headlights" to illuminate non-scene items
 
-    right = (2.0 * tan( eye->fovy / 2.0 ) * windowWidth / (float) windowHeight) * rightDir.normalize();
+    vec3 lightPos[MAX_NUM_LIGHTS] = {vec3(0, 0, 0)};  // light is at eye position
+    vec3 lightIin[MAX_NUM_LIGHTS] = {vec3(1, 1, 1)};
 
-    llCorner = (eye->lookAt - eye->position).normalize() - 0.5 * up - 0.5 * right;
+    wavefrontGPU->setVec3("lightIin", lightIin, MAX_NUM_LIGHTS);
+    wavefrontGPU->setVec3("lightPos", lightPos, MAX_NUM_LIGHTS);
 
-    up = (1.0 / (float) (windowHeight-1)) * up;
-    right = (1.0 / (float) (windowWidth-1)) * right;
+    wavefrontGPU->setInt("numLights", 1);
 
-    nextx = 0;
-    nexty = 0;
+    // Ambient lighting
 
-    stop = false;
+    wavefrontGPU->setVec3("Ia", vec3(1, 1, 1));
 
-    // Clear the RT image
-    
-    if (rtImage != NULL)
-      delete [] rtImage;
+    // Show the lights
 
-    rtImage = NULL;
-  }
+    for (int i = 0; i < lights.size(); i++) lights[i]->draw(wavefrontGPU, WCS_to_VCS, VCS_to_CCS, lightDir);
 
-  // Set up a new RT image
+    // Draw any stored rays (for debugging)
 
-  if (rtImage == NULL) {
-    rtImage = new vec4[ (int) (windowWidth/pixelScale * windowHeight/pixelScale) ];
-    for (int i=0; i<windowWidth/pixelScale * windowHeight/pixelScale; i++)
-      rtImage[i] = vec4(0,0,0,0); // transparent
-  }
+    drawStoredRays(wavefrontGPU, WCS_to_VCS, VCS_to_CCS);
 
-  if (stop)
-    return;
+    wavefrontGPU->deactivate();
 
-  // Draw the next pixel
+    // Draw axes
 
-  vec3 colour = pixelColour( (nextx+0.5)*pixelScale, (nexty+0.5)*pixelScale );
+    if (showAxes) axes->draw(WCS_to_CCS);
 
-  rtImage[ nextx + nexty * (int) (windowWidth/pixelScale) ] = vec4( colour.x, colour.y, colour.z, 1 ); // opaque
+    // First define scene lights
 
-  // Move (nextx,nexty) to the next pixel
+    int numLights = (lights.size() < MAX_NUM_LIGHTS ? lights.size() : MAX_NUM_LIGHTS);
 
-  nexty++;
-  if (nexty >= windowHeight/pixelScale) {
-
-    nexty = 0;
-    nextx++;
-
-    if (nextx >= windowWidth/pixelScale) { // finished
-      draw_RT_and_GL( WCS_to_VCS, VCS_to_CCS );
-      nextx = 0;
-      stop = true;
-      cout << "\r           \r";
-      cout.flush();
+    for (int i = 0; i < numLights; i++) {
+        lightPos[i] = (WCS_to_VCS * vec4(lights[i]->position, 1.0)).toVec3();
+        lightIin[i] = lights[i]->colour;
     }
-  } else {
 
-    float thisTime = getTime();
-    if (thisTime > lastDisplayTime + DISPLAY_INTERVAL) {
-      draw_RT_and_GL( WCS_to_VCS, VCS_to_CCS );
-      lastDisplayTime = thisTime;
-    }
-  }    
-    
+    wavefrontGPU->activate();
+
+    wavefrontGPU->setVec3("lightIin", lightIin, MAX_NUM_LIGHTS);
+    wavefrontGPU->setVec3("lightPos", lightPos, MAX_NUM_LIGHTS);
+
+    wavefrontGPU->setInt("numLights", numLights);
+
+    // Now draw everything
+
+    if (showObjects)
+        for (int i = 0; i < objects.size(); i++) objects[i]->renderGL(wavefrontGPU, WCS_to_VCS, VCS_to_CCS);
+
+    // Show status message
+
+    strokeFont->drawStrokeString(statusMessage(), -0.95, -0.95, TEXT_SIZE, 0, LEFT, vec3(1, 1, 1));
+
+    // Done
+
+    wavefrontGPU->deactivate();
 }
-
-
-// Render the scene with OpenGL
-
-
-void Scene::renderGL( mat4 &WCS_to_VCS, mat4 &VCS_to_CCS )
-
-{
-  mat4 WCS_to_CCS = VCS_to_CCS * WCS_to_VCS;
-
-  // create axes and segs here so that they are not created before
-  // the window is initialized
-
-  if (axes == NULL)
-    axes = new Axes();
-
-  if (segs == NULL)
-    segs = new Segs();
-
-  vec3 lightDir = vec3(1,1,1).normalize();
-  
-  // Set up the framebuffer
- 
-  glEnable( GL_DEPTH_TEST );
-  glClearColor( backgroundColour.x, backgroundColour.y, backgroundColour.z, 0 );
-  glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-
-  // Copy the window eye into the scene eye
-
-  eye->position = win->arcball->eyePosition();
-  eye->lookAt = win->arcball->lookAt();
-  eye->upDir = win->arcball->upDirection();
-  eye->fovy = win->fovy;
-
-  // Draw the objects
-
-  wavefrontGPU->activate();
-
-  // Need "headlights" to illuminate non-scene items
-
-  vec3 lightPos[MAX_NUM_LIGHTS] = { vec3(0,0,0) }; // light is at eye position
-  vec3 lightIin[MAX_NUM_LIGHTS] = { vec3(1,1,1) };
-
-  wavefrontGPU->setVec3( "lightIin", lightIin, MAX_NUM_LIGHTS );
-  wavefrontGPU->setVec3( "lightPos", lightPos, MAX_NUM_LIGHTS );
-  
-  wavefrontGPU->setInt( "numLights", 1 );
-
-  // Ambient lighting
-
-  wavefrontGPU->setVec3( "Ia", vec3(1,1,1) );
-
-  // Show the lights
-
-  for (int i=0; i<lights.size(); i++)
-    lights[i]->draw( wavefrontGPU, WCS_to_VCS, VCS_to_CCS, lightDir );
-      
-  // Draw any stored rays (for debugging)
-
-  drawStoredRays( wavefrontGPU, WCS_to_VCS, VCS_to_CCS );
-
-  wavefrontGPU->deactivate();
-
-  // Draw axes
-
-  if (showAxes)
-    axes->draw( WCS_to_CCS );
-
-  // First define scene lights
-
-  int numLights = (lights.size() < MAX_NUM_LIGHTS ? lights.size() : MAX_NUM_LIGHTS);
-
-  for (int i=0; i<numLights; i++) {
-    lightPos[i] = (WCS_to_VCS * vec4( lights[i]->position, 1.0 )).toVec3();
-    lightIin[i] = lights[i]->colour;
-  }
-
-  wavefrontGPU->activate();
-
-  wavefrontGPU->setVec3( "lightIin", lightIin, MAX_NUM_LIGHTS );
-  wavefrontGPU->setVec3( "lightPos", lightPos, MAX_NUM_LIGHTS );
-  
-  wavefrontGPU->setInt( "numLights", numLights );
-  
-  // Now draw everything
-
-  if (showObjects)
-    for (int i=0; i<objects.size(); i++)
-      objects[i]->renderGL( wavefrontGPU, WCS_to_VCS, VCS_to_CCS );
-
-  // Show status message
-      
-  strokeFont->drawStrokeString( statusMessage(), -0.95, -0.95, TEXT_SIZE, 0, LEFT, vec3(1,1,1) );
-
-  // Done
-
-  wavefrontGPU->deactivate();
-}
-
-
 
 // Draw any stored rays (for debugging)
 
-
 #define BASE_ARROW_RADIUS 0.01
 
-
-void Scene::drawStoredRays( GPUProgram *gpuProg, mat4 &WCS_to_VCS, mat4 &VCS_to_CCS )
+void Scene::drawStoredRays(GPUProgram *gpuProg, mat4 &WCS_to_VCS, mat4 &VCS_to_CCS)
 
 {
-  if (storedRays.size() > 0) {
-        
-    if (arrow == NULL)
-      arrow = new Arrow();
+    if (storedRays.size() > 0) {
+        if (arrow == NULL) arrow = new Arrow();
 
-    for (int i=0; i<storedRays.size(); i+=2) {
+        for (int i = 0; i < storedRays.size(); i += 2) {
+            vec3 dir = storedRays[i] - storedRays[i + 1];
+            mat4 OCS_to_WCS = translate(storedRays[i + 1]) * rotate(vec3(0, 0, 1), dir);
 
-      vec3 dir = storedRays[i] - storedRays[i+1];
-      mat4 OCS_to_WCS = translate( storedRays[i+1] ) * rotate( vec3(0,0,1), dir );
+            arrow->mat->kd = storedRayColours[i / 2];
 
-      arrow->mat->kd = storedRayColours[i/2];
-
-      arrow->draw( gpuProg, OCS_to_WCS, WCS_to_VCS, VCS_to_CCS, 
-		           (i == 0 ? 0.25 : 1.0) * dir.length(), // first ray (going back to eye) is shorter
-		           sceneScale*BASE_ARROW_RADIUS );
+            arrow->draw(gpuProg, OCS_to_WCS, WCS_to_VCS, VCS_to_CCS,
+                        (i == 0 ? 0.25 : 1.0) * dir.length(),  // first ray (going back to eye) is shorter
+                        sceneScale * BASE_ARROW_RADIUS);
+        }
     }
-  }
 }
-
-
 
 // Draw the scene, then draw the RT image on top of it.  Transparent
 // pixels in the RT image are those that have not been calculated yet.
 
-void Scene::draw_RT_and_GL( mat4 &WCS_to_VCS, mat4 &VCS_to_CCS )
+void Scene::draw_RT_and_GL(mat4 &WCS_to_VCS, mat4 &VCS_to_CCS)
 
 {
-  renderGL( WCS_to_VCS, VCS_to_CCS ); // GL rendering
+    renderGL(WCS_to_VCS, VCS_to_CCS);  // GL rendering
 
-  drawRTImage();  // RT image on top
+    drawRTImage();  // RT image on top
 
-  // Redraw the stored rays and lights over top of the RT image
+    // Redraw the stored rays and lights over top of the RT image
 
-  wavefrontGPU->activate();
-  
-  // Need "headlights" to illuminate non-scene items
+    wavefrontGPU->activate();
 
-  vec3 lightPos[MAX_NUM_LIGHTS] = { vec3(0,0,0) }; // light is at eye position
-  vec3 lightIin[MAX_NUM_LIGHTS] = { vec3(1,1,1) };
+    // Need "headlights" to illuminate non-scene items
 
-  wavefrontGPU->setVec3( "lightIin", lightIin, MAX_NUM_LIGHTS );
-  wavefrontGPU->setVec3( "lightPos", lightPos, MAX_NUM_LIGHTS );
-  
-  wavefrontGPU->setInt( "numLights", 1 );
+    vec3 lightPos[MAX_NUM_LIGHTS] = {vec3(0, 0, 0)};  // light is at eye position
+    vec3 lightIin[MAX_NUM_LIGHTS] = {vec3(1, 1, 1)};
 
-  vec3 lightDir = vec3(1,1,1).normalize(); // only for OpenGL rendering
+    wavefrontGPU->setVec3("lightIin", lightIin, MAX_NUM_LIGHTS);
+    wavefrontGPU->setVec3("lightPos", lightPos, MAX_NUM_LIGHTS);
 
-  mat4 VP = translate(0,0,-0.1) * VCS_to_CCS; // move a little forward in the CCS so as to overdraw the
-                                              // previously-drawn arrow at this location (depth-buffer issue)
-  for (int i=0; i<lights.size(); i++)
-    lights[i]->draw( wavefrontGPU, WCS_to_VCS, VP, lightDir );
-  
-  drawStoredRays( wavefrontGPU, WCS_to_VCS, VP );
+    wavefrontGPU->setInt("numLights", 1);
 
-  wavefrontGPU->deactivate();
+    vec3 lightDir = vec3(1, 1, 1).normalize();  // only for OpenGL rendering
 
-  // Perhaps show the pixel zoom
+    mat4 VP = translate(0, 0, -0.1) * VCS_to_CCS;  // move a little forward in the CCS so as to overdraw the
+                                                   // previously-drawn arrow at this location (depth-buffer issue)
+    for (int i = 0; i < lights.size(); i++) lights[i]->draw(wavefrontGPU, WCS_to_VCS, VP, lightDir);
 
-  if (buttonDown == GLFW_MOUSE_BUTTON_LEFT && (buttonMods & GLFW_MOD_CONTROL)) {
-    pixelZoom->zoom( win->window, mouse, vec2(windowWidth,windowHeight) );
-    win->draggingWasDone = true;
-  }
+    drawStoredRays(wavefrontGPU, WCS_to_VCS, VP);
 
-  // Status message
+    wavefrontGPU->deactivate();
 
-  glDisable( GL_DEPTH_TEST );
-  strokeFont->drawStrokeString( statusMessage(), -0.95, -0.95, TEXT_SIZE, 0, LEFT, vec3(1,1,1) );
-  glEnable( GL_DEPTH_TEST );
+    // Perhaps show the pixel zoom
 
-  // Done
+    if (buttonDown == GLFW_MOUSE_BUTTON_LEFT && (buttonMods & GLFW_MOD_CONTROL)) {
+        pixelZoom->zoom(win->window, mouse, vec2(windowWidth, windowHeight));
+        win->draggingWasDone = true;
+    }
 
-  glfwSwapBuffers( win->window );
+    // Status message
+
+    glDisable(GL_DEPTH_TEST);
+    strokeFont->drawStrokeString(statusMessage(), -0.95, -0.95, TEXT_SIZE, 0, LEFT, vec3(1, 1, 1));
+    glEnable(GL_DEPTH_TEST);
+
+    // Done
+
+    glfwSwapBuffers(win->window);
 }
-
-
 
 void Scene::drawRTImage()
 
 {
-  if (rtImage == NULL)
-    return;
+    if (rtImage == NULL) return;
 
-  if (gpu == NULL) {
-    gpu = new GPUProgram();
-    gpu->init( rtTextureVertShader, rtTextureFragShader, "in Scene::drawRTImage" );
-  }
+    if (gpu == NULL) {
+        gpu = new GPUProgram();
+        gpu->init(rtTextureVertShader, rtTextureFragShader, "in Scene::drawRTImage");
+    }
 
-  // Send texture to GPU
+    // Send texture to GPU
 
-  if (rtImageTexID == 0)
-    glGenTextures( 1, &rtImageTexID );
+    if (rtImageTexID == 0) glGenTextures(1, &rtImageTexID);
 
-  glActiveTexture( GL_TEXTURE1 );
-  glBindTexture( GL_TEXTURE_2D, rtImageTexID );
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, rtImageTexID);
 
-  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST );
-  glTexParameteri( GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST );
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 
-  glTexImage2D( GL_TEXTURE_2D, 0, GL_RGBA, windowWidth/pixelScale, windowHeight/pixelScale, 0, GL_RGBA, GL_FLOAT, rtImage );
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, windowWidth / pixelScale, windowHeight / pixelScale, 0, GL_RGBA, GL_FLOAT,
+                 rtImage);
 
-  // Draw texture on a full-screen quad
+    // Draw texture on a full-screen quad
 
-  vec2 verts[8] = {
-    vec2( -1, -1 ), vec2( -1, 1 ), vec2( 1, -1 ), vec2( 1, 1 ), // positions
-    vec2(  0,  0 ), vec2(  0, 1 ), vec2( 1,  0 ), vec2( 1, 1 )  // texture coordinates
-  };
-    
-  GLuint VAO, VBO;
+    vec2 verts[8] = {
+        vec2(-1, -1), vec2(-1, 1), vec2(1, -1), vec2(1, 1),  // positions
+        vec2(0, 0),   vec2(0, 1),  vec2(1, 0),  vec2(1, 1)   // texture coordinates
+    };
 
-  glGenVertexArrays( 1, &VAO );
-  glBindVertexArray( VAO );
+    GLuint VAO, VBO;
 
-  glGenBuffers( 1, &VBO );
-  glBindBuffer( GL_ARRAY_BUFFER, VBO );
+    glGenVertexArrays(1, &VAO);
+    glBindVertexArray(VAO);
 
-  glBufferData( GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW );
+    glGenBuffers(1, &VBO);
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
 
-  glEnableVertexAttribArray( 0 );
-  glVertexAttribPointer( 0, 2, GL_FLOAT, GL_FALSE, 0, 0 );
+    glBufferData(GL_ARRAY_BUFFER, sizeof(verts), verts, GL_STATIC_DRAW);
 
-  glEnableVertexAttribArray( 1 );
-  glVertexAttribPointer( 1, 2, GL_FLOAT, GL_FALSE, 0, (void*) (sizeof(vec2)*4) );
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, 0);
 
-  glDisable( GL_DEPTH_TEST );
-  glEnable( GL_BLEND );
-  glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 0, (void *)(sizeof(vec2) * 4));
 
-  gpu->activate();
-  gpu->setInt( "texUnitID", 1 );
-  gpu->setInt( "texturing", 1 );
-  glDrawArrays( GL_TRIANGLE_STRIP, 0, 4 );
-  gpu->deactivate();
+    glDisable(GL_DEPTH_TEST);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-  glDisable( GL_BLEND );
-  glEnable( GL_DEPTH_TEST );
+    gpu->activate();
+    gpu->setInt("texUnitID", 1);
+    gpu->setInt("texturing", 1);
+    glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    gpu->deactivate();
 
-  glDeleteBuffers( 1, &VBO );
-  glDeleteVertexArrays( 1, &VAO );
+    glDisable(GL_BLEND);
+    glEnable(GL_DEPTH_TEST);
 
-  glBindTexture( GL_TEXTURE_2D, 0 );
+    glDeleteBuffers(1, &VBO);
+    glDeleteVertexArrays(1, &VAO);
+
+    glBindTexture(GL_TEXTURE_2D, 0);
 }
-
-
 
 const char *Scene::rtTextureVertShader = R"(
 
@@ -892,7 +838,6 @@ const char *Scene::rtTextureVertShader = R"(
     texCoords = texCoordsIn;
   }
 )";
-
 
 const char *Scene::rtTextureFragShader = R"(
 
@@ -915,8 +860,7 @@ const char *Scene::rtTextureFragShader = R"(
   }
 )";
 
-
-const char* Scene::wavefrontVertexShader = R"(
+const char *Scene::wavefrontVertexShader = R"(
   // phong vertex shader with textures
 
   #version 300 es
@@ -963,8 +907,7 @@ const char* Scene::wavefrontVertexShader = R"(
   }
 )";
 
-
-const char* Scene::wavefrontFragmentShader = R"(
+const char *Scene::wavefrontFragmentShader = R"(
   // Phong fragment shader with textures
   //
   // Phong shading with diffuse and specular components
@@ -1038,5 +981,3 @@ const char* Scene::wavefrontFragmentShader = R"(
     outputColour = vec4( Iout, 1.0 );
   }
 )";
-
-
