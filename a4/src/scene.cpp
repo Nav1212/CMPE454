@@ -221,7 +221,7 @@ vec3 Scene::raytrace(vec3 &rayStart, vec3 &rayDir, int depth, int thisObjIndex, 
         float halfangle = acos(g);
         float dist = 1 / tan(halfangle);
         float A, B, AandB;
-        vec3 Iin, u, v, temp, tempIout;
+        vec3 Iin, u, v, temp;
         u = R.perp1();
         v = R.perp2();
 
@@ -238,10 +238,10 @@ vec3 Scene::raytrace(vec3 &rayStart, vec3 &rayDir, int depth, int thisObjIndex, 
 
             temp = (dist * R + A * u + B * v).normalize();
             Iin = raytrace(P, temp, depth, objIndex, objPartIndex);
-            tempIout = tempIout + calcIout(N, temp, E, E, kd, mat->ks, mat->n, Iin);
+            TotalGlossyIout = TotalGlossyIout + calcIout(N, temp, E, R, kd, mat->ks, mat->n, Iin);
         }
 
-        Iout = Iout + (1.0f / numRaySamples) * tempIout;
+        Iout = Iout + (1.0f / numRaySamples) * TotalGlossyIout;
 
         // ---------------- END YOUR CODE HERE ----------------
     }
@@ -296,7 +296,7 @@ vec3 Scene::raytrace(vec3 &rayStart, vec3 &rayDir, int depth, int thisObjIndex, 
 
                 // Soft shadows
 
-                vec3 tempIout;
+                vec3 tempIout = vec3(0, 0, 0);
                 int raysThatHit = 0;
 
                 for (int i = 0; i < numRaySamples; i++) {
@@ -315,21 +315,9 @@ vec3 Scene::raytrace(vec3 &rayStart, vec3 &rayDir, int depth, int thisObjIndex, 
                     vec3 alphaV1 = alpha * tri->verts[1].position;
                     vec3 betaV2 = beta * tri->verts[2].position;
                     vec3 tempP1 = gammaV0 + alphaV1 + betaV2;
-                    // vec3 tempP1 = (gammaV0 + alphaV1 + betaV2).normalize();
                     vec3 tempP = tempP1 - P;
                     float tempPDist = tempP.length();
-                    // tempP = tempP.normalize();
-                    tempP = (1.0 / tempPDist) * tempP;
-
-                    // vec3 intP, intN, intTexCoords;
-                    // float intT;
-                    // int intObjIndex, intObjPartIndex;
-                    // Material *intMat;
-                    // bool found = findFirstObjectInt(P, tempP, objIndex, objPartIndex, intP, intN, intTexCoords, intT,
-                    //                                 intObjIndex, intObjPartIndex, intMat, i);
-
-                    // is dist to point on tri == to actual int point + epsilon?
-                    float epsilon = 0.001;
+                    tempP = tempP.normalize();
 
                     // Next, test t (distance) to see if the ray is blocked
                     vec3 intP, intN, intTexCoords;
@@ -344,30 +332,25 @@ vec3 Scene::raytrace(vec3 &rayStart, vec3 &rayDir, int depth, int thisObjIndex, 
 
                     bool found = findFirstObjectInt(P, tempP, objIndex, objPartIndex, intP, intN, intTexCoords, intT,
                                                     intObjIndex, intObjPartIndex, intMat, i);
-                    // float tempDist = tempP.length();
 
-                    // cout << tempPDist << " ok: " << intT << endl;
+                    // is dist to point on tri == to actual int point + epsilon?
+                    float epsilon = 0.0001;
 
-                    // if (found && tempPDist < intT + epsilon && tempPDist > intT - epsilon) {
-                    if (found && tempPDist == intT) {
+                    if (found && tempPDist < intT + epsilon && tempPDist > intT - epsilon) {
                         // for a ray that hits...
                         raysThatHit += 1;
 
-                        // cout << tempPDist << " ok: " << intT << endl;
-                        // cout << (tempPDist == intT) << endl;
                         vec3 Lr = (2 * (tempP * N)) * N - tempP;
-                        tempIout = tempIout + calcIout(N, tempP, E, Lr, mat->kd, mat->ks, mat->n, tri->mat->Ie);
+                        tempIout = tempIout + calcIout(N, tempP, E, Lr, kd, mat->ks, mat->n, tri->mat->Ie);
                     }
-
-                    // Triangle *currentTri = (Triangle *)objects[i];
                 }
 
                 vec3 avgRay = (1.0f / raysThatHit) * tempIout;
-                vec3 intensityOfAvgRay = (raysThatHit / numRaySamples) * avgRay;
 
-                // Iout = Iout + (1.0f / numRaySamples) * (avgRay);
-                // Iout = Iout + intensityOfAvgRay;
-                Iout = Iout + (raysThatHit / numRaySamples) * tri->mat->Ie;
+                vec3 intensityOfAvgRay =
+                    raysThatHit == 0 ? vec3(0, 0, 0) : (1.0f / numRaySamples) * raysThatHit * avgRay;
+
+                Iout = Iout + intensityOfAvgRay;
 
                 // ---------------- END YOUR CODE HERE ----------------
             }
