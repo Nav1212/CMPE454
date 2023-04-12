@@ -221,15 +221,33 @@ vec3 Scene::raytrace( vec3 &rayStart, vec3 &rayDir, int depth, int thisObjIndex,
     // reflected colour according to Phong, which is determined by
     // passing the individual ray through calcIout().
       vec3 TotalGlossyIout = vec3(0, 0, 0);
-      float psi=
-
-    g = 1 - (1-g) / glossinessFactor;   // glossinessFactor is controlled by pressing 'G' or 'g'
+      float psi=g = 1 - (1-g) / glossinessFactor;   // glossinessFactor is controlled by pressing 'G' or 'g'
 
     lastGlossiness = g; // for showing in the window's status message
 
-    // ---------------- START YOUR CODE HERE ----------------
+   // ---------------- START YOUR CODE HERE ----------------
+    float halfangle = 1 / cos(g);
+    float dist = 1 / tan(halfangle);
+    float A,B, AandB;
+    vec3 Iin,u,v, temp;
+    u = R.perp1();
+    v = R.perp2();
 
-
+    for (int i = 0; i < numRaySamples; i++) {
+        // A and B  make sure that they are between 0 and 1 as a sum
+        A = rand()%1;
+        B = rand() % 1;
+        AandB = A*A+B*A;
+        while (AandB > 1) {
+            A = rand() % 1;
+            B = rand() % 1;
+            AandB= A * A + B * A;
+        }
+        
+        temp = (dist * R + A * u + B * v);
+        Iin= raytrace(P, temp, depth, objIndex, objPartIndex);
+        Iout = Iout+ calcIout(N, temp, E, E, vec3(0.0, 0.0, 0.0), mat->ks, mat->n, Iin);
+    }
     // ---------------- END YOUR CODE HERE ----------------
   }
   
