@@ -226,28 +226,29 @@ vec3 Scene::raytrace( vec3 &rayStart, vec3 &rayDir, int depth, int thisObjIndex,
     lastGlossiness = g; // for showing in the window's status message
 
    // ---------------- START YOUR CODE HERE ----------------
-    float halfangle = 1 / cos(g);
+    float halfangle = acos(g);
     float dist = 1 / tan(halfangle);
     float A,B, AandB;
     vec3 Iin,u,v, temp;
     u = R.perp1();
     v = R.perp2();
-
+  
     for (int i = 0; i < numRaySamples; i++) {
         // A and B  make sure that they are between 0 and 1 as a sum
-        A = rand()%1;
-        B = rand() % 1;
+        A = randIn01();
+        B = randIn01();
         AandB = A*A+B*A;
         while (AandB > 1) {
-            A = rand() % 1;
-            B = rand() % 1;
+            A = randIn01();
+            B = randIn01();
             AandB= A * A + B * A;
         }
         
-        temp = (dist * R + A * u + B * v);
+        temp = (dist * R + A * u + B * v).normalize();
         Iin= raytrace(P, temp, depth, objIndex, objPartIndex);
         Iout = Iout+ calcIout(N, temp, E, E, vec3(0.0, 0.0, 0.0), mat->ks, mat->n, Iin);
     }
+    Iout = (1.0f/numRaySamples) * Iout;
     // ---------------- END YOUR CODE HERE ----------------
   }
   
@@ -299,8 +300,18 @@ vec3 Scene::raytrace( vec3 &rayStart, vec3 &rayDir, int depth, int thisObjIndex,
 	// Send 'numRaySamples' rays toward the emitting triangle.
 	
 	// ---------------- BEGIN YOUR CODE HERE ----------------
-	
+          float A = randIn01();
+          float B = randIn01();
+          float AandB = A * A + B * A;
+          while (AandB > 1) {
+              A = randIn01();
+              B = randIn01();
+              AandB = A * A + B * A;
+          }
+          Triangle *currentTri = (Triangle*) objects[i];
 
+           
+          //Iout=Iout+
 	// ---------------- END YOUR CODE HERE ----------------
       }
     }
