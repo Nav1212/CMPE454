@@ -221,7 +221,7 @@ vec3 Scene::raytrace(vec3 &rayStart, vec3 &rayDir, int depth, int thisObjIndex, 
         float halfangle = acos(g);
         float dist = 1 / tan(halfangle);
         float A, B, AandB;
-        vec3 Iin, u, v, temp, tempIout;
+        vec3 Iin, u, v, temp;
         u = R.perp1();
         v = R.perp2();
 
@@ -238,10 +238,10 @@ vec3 Scene::raytrace(vec3 &rayStart, vec3 &rayDir, int depth, int thisObjIndex, 
 
             temp = (dist * R + A * u + B * v).normalize();
             Iin = raytrace(P, temp, depth, objIndex, objPartIndex);
-            tempIout = tempIout + calcIout(N, temp, E, E, kd, mat->ks, mat->n, Iin);
+            TotalGlossyIout = TotalGlossyIout + calcIout(N, temp, E, R, kd, mat->ks, mat->n, Iin);
         }
 
-        Iout = Iout + (1.0f / numRaySamples) * tempIout;
+        Iout = Iout + (1.0f / numRaySamples) * TotalGlossyIout;
 
         // ---------------- END YOUR CODE HERE ----------------
     }
@@ -296,22 +296,62 @@ vec3 Scene::raytrace(vec3 &rayStart, vec3 &rayDir, int depth, int thisObjIndex, 
 
                 // Soft shadows
 
-                // Rejection sampling:
-                // choose A, B in [0, 1]
-                float A = 1;
-                float B = 1;
-                while (A + B > 1) {
-                    A = randIn01();
-                    B = randIn01();
+                vec3 tempIout = vec3(0, 0, 0);
+                int raysThatHit = 0;
+
+                for (int i = 0; i < numRaySamples; i++) {
+                    // Rejection sampling:
+                    // choose A, B in [0, 1]
+                    float alpha = 1;
+                    float beta = 1;
+                    while (alpha + beta > 1) {
+                        alpha = randIn01();
+                        beta = randIn01();
+                    }
+                    float gamma = 1 - alpha - beta;
+
+                    // point on tri is P = gamma*v0 + alpha*v1 + beta*v2
+                    vec3 gammaV0 = gamma * tri->verts[0].position;
+                    vec3 alphaV1 = alpha * tri->verts[1].position;
+                    vec3 betaV2 = beta * tri->verts[2].position;
+                    vec3 tempP1 = gammaV0 + alphaV1 + betaV2;
+                    vec3 tempP = tempP1 - P;
+                    float tempPDist = tempP.length();
+                    tempP = tempP.normalize();
+
+                    // Next, test t (distance) to see if the ray is blocked
+                    vec3 intP, intN, intTexCoords;
+                    float intT;
+                    int intObjIndex, intObjPartIndex;
+                    Material *intMat;
+
+                    // Is there an object between P and the light?
+                    //
+                    // Note that 'intObjIndex' will return with the index of the
+                    // object that is hit.  So the hit object is objects[intObjIndex].
+
+                    bool found = findFirstObjectInt(P, tempP, objIndex, objPartIndex, intP, intN, intTexCoords, intT,
+                                                    intObjIndex, intObjPartIndex, intMat, i);
+
+                    // is dist to point on tri == to actual int point + epsilon?
+                    float epsilon = 0.0001;
+
+                    if (found && tempPDist < intT + epsilon && tempPDist > intT - epsilon) {
+                        // for a ray that hits...
+                        raysThatHit += 1;
+
+                        vec3 Lr = (2 * (tempP * N)) * N - tempP;
+                        tempIout = tempIout + calcIout(N, tempP, E, Lr, kd, mat->ks, mat->n, tri->mat->Ie);
+                    }
                 }
 
-                // point on triangle is P = (1-A-B)v0 + Av1 + Bv2
+                vec3 avgRay = (1.0f / raysThatHit) * tempIout;
 
-                // Next, test t (distance) to see if the ray is blocked
+                vec3 intensityOfAvgRay =
+                    raysThatHit == 0 ? vec3(0, 0, 0) : (1.0f / numRaySamples) * raysThatHit * avgRay;
 
-                Triangle *currentTri = (Triangle *)objects[i];
+                Iout = Iout + intensityOfAvgRay;
 
-                // Iout=Iout+
                 // ---------------- END YOUR CODE HERE ----------------
             }
         }
