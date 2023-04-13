@@ -221,24 +221,24 @@ vec3 Scene::raytrace(vec3 &rayStart, vec3 &rayDir, int depth, int thisObjIndex, 
         float halfangle = acos(g);
         float dist = 1 / tan(halfangle);
         float A, B, AandB;
-        vec3 Iin, u, v, temp;
+        vec3 Iin, u, v, pointDir;
         u = R.perp1();
         v = R.perp2();
 
         for (int i = 0; i < numRaySamples; i++) {
-            // A and B  make sure that they are between 0 and 1 as a sum
-            A = 1;
-            B = 1;
-            AandB = pow(A, 2) + pow(B, 2);
+            // ensure A^2 + B^2 <= 1
+            A = 1.0;
+            B = 1.0;
+            AandB = 2.0;  // set to anything >1
             while (AandB > 1) {
                 A = randIn01();
                 B = randIn01();
                 AandB = pow(A, 2) + pow(B, 2);
             }
 
-            temp = (dist * R + A * u + B * v).normalize();
-            Iin = raytrace(P, temp, depth, objIndex, objPartIndex);
-            TotalGlossyIout = TotalGlossyIout + calcIout(N, temp, E, R, kd, mat->ks, mat->n, Iin);
+            pointDir = (dist * R + A * u + B * v).normalize();
+            Iin = raytrace(P, pointDir, depth, objIndex, objPartIndex);
+            TotalGlossyIout = TotalGlossyIout + calcIout(N, pointDir, E, R, kd, mat->ks, mat->n, Iin);
         }
 
         Iout = Iout + (1.0f / numRaySamples) * TotalGlossyIout;
@@ -310,16 +310,16 @@ vec3 Scene::raytrace(vec3 &rayStart, vec3 &rayDir, int depth, int thisObjIndex, 
                     }
                     float gamma = 1 - alpha - beta;
 
-                    // point on tri is P = gamma*v0 + alpha*v1 + beta*v2
+                    // point on tri is defined as gamma*v0 + alpha*v1 + beta*v2
                     vec3 gammaV0 = gamma * tri->verts[0].position;
                     vec3 alphaV1 = alpha * tri->verts[1].position;
                     vec3 betaV2 = beta * tri->verts[2].position;
-                    vec3 tempP1 = gammaV0 + alphaV1 + betaV2;
-                    vec3 tempP = tempP1 - P;
-                    float tempPDist = tempP.length();
-                    tempP = tempP.normalize();
+                    vec3 triPoint = gammaV0 + alphaV1 + betaV2;
+                    vec3 triPointDir = triPoint - P;
+                    float triPointDist = triPointDir.length();
+                    triPointDir = triPointDir.normalize();
 
-                    // Next, test t (distance) to see if the ray is blocked
+                    // Next, test intT (distance) to see if the ray is blocked
                     vec3 intP, intN, intTexCoords;
                     float intT;
                     int intObjIndex, intObjPartIndex;
@@ -330,23 +330,26 @@ vec3 Scene::raytrace(vec3 &rayStart, vec3 &rayDir, int depth, int thisObjIndex, 
                     // Note that 'intObjIndex' will return with the index of the
                     // object that is hit.  So the hit object is objects[intObjIndex].
 
-                    bool found = findFirstObjectInt(P, tempP, objIndex, objPartIndex, intP, intN, intTexCoords, intT,
-                                                    intObjIndex, intObjPartIndex, intMat, i);
+                    bool found = findFirstObjectInt(P, triPointDir, objIndex, objPartIndex, intP, intN, intTexCoords,
+                                                    intT, intObjIndex, intObjPartIndex, intMat, i);
 
-                    // is dist to point on tri == to actual int point + epsilon?
+                    // is dist to point on tri == to actual int point +/- epsilon?
                     float epsilon = 0.0001;
 
-                    if (found && tempPDist < intT + epsilon && tempPDist > intT - epsilon) {
+                    if (found && triPointDist < intT + epsilon && triPointDist > intT - epsilon) {
                         // for a ray that hits...
                         raysThatHit += 1;
 
-                        vec3 Lr = (2 * (tempP * N)) * N - tempP;
-                        tempIout = tempIout + calcIout(N, tempP, E, Lr, kd, mat->ks, mat->n, tri->mat->Ie);
+                        vec3 triPointDirR = (2 * (triPointDir * N)) * N - triPointDir;
+                        tempIout =
+                            tempIout + calcIout(N, triPointDir, E, triPointDirR, kd, mat->ks, mat->n, tri->mat->Ie);
                     }
                 }
 
+                // calc avg. ray (r hat)
                 vec3 avgRay = (1.0f / raysThatHit) * tempIout;
 
+                // calc intensity of r hat
                 vec3 intensityOfAvgRay =
                     raysThatHit == 0 ? vec3(0, 0, 0) : (1.0f / numRaySamples) * raysThatHit * avgRay;
 
@@ -414,7 +417,7 @@ vec3 Scene::pixelColour(int x, int y)
 
     result = raytrace(eye->position, dir, 0, -1, -1);
 
-#else 
+#else
 
     // Antialias through a pixel using ('numPixelSamples' x
     // 'numPixelSamples') rays.  Use a regular pattern in the subpixel
@@ -428,21 +431,19 @@ vec3 Scene::pixelColour(int x, int y)
     for (int row = 0; row < numPixelSamples; row++) {
         for (int col = 0; col < numPixelSamples; col++) {
             if (jitter == false) {
-                 xOffset = (col + 0.5f) / numPixelSamples;
-                 yOffset = (row + 0.5f) / numPixelSamples;
-            }
-            else {
-                 xOffset = (col + 0.5f+randIn01()) / numPixelSamples;
-                 yOffset = (row + 0.5f+randIn01()) / numPixelSamples;
-
+                xOffset = (col + 0.5f) / numPixelSamples;
+                yOffset = (row + 0.5f) / numPixelSamples;
+            } else {
+                xOffset = (col + 0.5f + randIn01()) / numPixelSamples;
+                yOffset = (row + 0.5f + randIn01()) / numPixelSamples;
             }
 
-            vec3 dir = (llCorner + (x+ xOffset) * right + (y+yOffset) * up).normalize();
+            vec3 dir = (llCorner + (x + xOffset) * right + (y + yOffset) * up).normalize();
             totalColor = totalColor + raytrace(eye->position, dir, 0, -1, -1);
         }
     }
 
-    result = 1/(numPixelSamples*numPixelSamples)*totalColor;
+    result = 1.0f / (numPixelSamples * numPixelSamples) * totalColor;
 
     // ---------------- END YOUR CODE HERE ----------------
 
