@@ -21,7 +21,7 @@ class RTwindow;
 #include "arrow.h"
 
 
-#define PIXEL_SCALE 2           // initial size of raytraced pixel (for multi-res rendering.  Must be power of two.)
+#define PIXEL_SCALE 1           // initial size of raytraced pixel (for multi-res rendering.  Must be power of two.)
 #define DISPLAY_INTERVAL 0.5    // time (in seconds) between updates of raytracing in the window
 #define TEXT_SIZE 0.05          // size of text in [-1,1]x[-1,1] coordinate system
 
