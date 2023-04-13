@@ -1,0 +1,97 @@
+CISC/CMPE 454 Assignment 3 - Marking
+
+student name 1  : Ben Honda
+student netID 1 : 18bth1
+
+student name 2  : Navid Sarshar
+student netID 2 : 18ns27
+
+total: 10.5/14
+
+
+pointToEdgeDistance()
+
+  0/1 Projection correctly onto edge.  Check for projection being
+     beyond head or beyond tail.
+
+  TA comments:
+	* (-1) you pass the lineDir to distanceToLine as the edgeHead (which is not a vecotr), and is incorrect as the line vector must be Head - Tail. Moreover, the "projection" must be dot product between pointVec and edgeVec not with pointVec.normalize().
+
+Sphere::distToRectangle()
+
+  1/1 Case of sphere directly above rectangle: Check bounds.  Transform
+     resulting closestPoint to WCS.  Compute distance minus radius.
+     fabs() is good, but not necessary, around sphereCentre.z.
+
+  1/1 Provide the correct edge endpoints to each pointToEdgeDistance()
+     call.  Store the results correctly.
+
+  0/1 Transform closestPoint to WCS.  Compute distance minus radius.
+
+  TA comments:
+	* (-1) Use "min" which is calculated using pointToEdgeDistance() rather than the distance between sphereCentre and pt. 
+	
+
+World::integrate()
+
+  1/1 Fill up y and yDeriv correctly.
+
+  1/1 Compute integral as yEnd = yStart + deltaT * yDeriv.
+
+  TA comments:
+
+
+World::updateStateByDeltaT()
+
+  1/1 Each iteration divides deltaT by 2.  Iteration ends when deltaT
+     <= MIN_DELTA_T_FOR_COLLISIONS
+
+  0/1 actualDeltaT is the time to the *start* of the final interval.
+     Not the end of the final interval or any other time.
+
+  0.5/1 Code is clean and efficient.
+
+  TA comments:
+	* (-1) In the case of no colision at deltaT, then the yStart shall be moved to that of the end (i.e.  copyState( yEnd, yStart))
+	
+	* (-0.5) deltaT passed to integrate must keep decreasing by 2. The value passed is the mid of the time interval.
+World::resolveCollision()
+
+  sphere/sphere resolution
+
+  1/1 Find correct normal between sphere centres
+
+  1/1 Compute correct v1a and v2a
+
+  1/1 Update only the normal component of each sphere's velocity.  Keep
+     the perpendicular component *unchanged*.  Do not set the
+     perpendicular component to zero.
+
+  sphere/rectangle resolution
+
+  1/1 Find correct normal from SPHERE CENTRE to CONTACT POINT.  Do not
+     use the rectangle normal, as that is incorrect for contact points
+     on rectangle edges.
+
+  1/1 Compute correct v1a.  Update sphere velocity in normal direction
+     only; perpendicular velocity should be unchanged.
+
+  TA comments:
+
+
+Submission
+
+  Follow the submission instructions correctly.  ANY DEVIATION FROM
+  THESE SUBMISSION INSTRUCTIONS (such as including Windows project
+  files, or including a __MACOSX directory, or not providing the
+  required information in the README.txt file) will result in -1 here.
+
+   - archive named 'a3.zip'
+   - directory called 'a3'.
+   - only these files in that directory: README.txt, *.cpp, *.h
+
+  /-1 if instructions not followed
+
+  /-20% per day for lateness
+
+  TA comments:
