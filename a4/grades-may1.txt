@@ -1,0 +1,95 @@
+CISC/CMPE 454 Assignment 4 - Marking
+
+student name 1  : Ben Honda
+student netID 1 : 18bth1
+
+student name 2  : Navid Sarshar
+student netID 2 : 18ns27
+
+
+total: 7/12
+
+
+Glossy reflection
+
+   0/1 Calculate uniform random point on unit disk, not just in +x,+y
+      quadrant
+
+   1/1 Calculate correct direction to the random point
+
+   1/1 Recurse with right parameters
+
+   0/1 Calculate each reflected ray individually with calcIout using
+      the correct reflected direction for that individual ray.
+      Average the reflected rays.
+
+  TA Comments:
+   -1 a and b must be in the range [-1, 1] rather than [0, 1]
+
+   -1 The reflected ray (the fourth argument of calcIout()) is the
+      reflection of the ray to the point on disk:
+   
+        vec3 RRrefl = 2 * (pointDir*N) * N - pointDir;
+
+
+Antialiasing with jitter:
+
+   1/1 Use a general grid of size numPixelSamples x numPixelSamples.
+
+   0/1 For each sample without jittering, calculate correct subpixel
+      *centre* position and send a ray through that position.  Average
+      the ray colours.
+
+   0/1 When jittering, offset randomly *within* each subpixel (and
+      scale the offset by the size of a subpixel).
+
+  TA Comments:
+    -1 Since (x,y) is the centre of the pixel (from the comment in the
+       code), your xOffset and yOffset must be in the range
+       [-0.5,+0.5].  For example, when numPixelSamples = 1, you are
+       sampling at (x+0.5,y+0.5), which is the upper-right corner of
+       the pixel.
+
+    -1 jittering must be in [-0.5, 0.5] rather than [0, 1]
+
+
+
+Soft shadows:
+
+   1/1 generate a uniform random barycentric coordinates using
+      rejection sampling.
+
+   1/1 use the random parameters to find *direction* to point on light.
+
+   0/1 don't do anything if N dot L <= 0.  Ignoring this is extremely
+      inefficient.  Should do it for each ray direction, L.
+
+   1/1 test whether shadow ray hits light first or other object by
+      calling findFirstObjectInt() and handling the results.
+
+   1/1 accumulate shadow rays, correctly weighted, using calcIout with
+      correct reflection direction from the sample direction.
+
+  TA Comments:
+   -1 Must check that the N * L is > 0
+
+   -1 Must pass -1 for the light index (last parameter), also, the condition to check if hit happens is always false. 
+
+   -0.5 The weight of each intensity is 1/numRaySamples rather than those which have no hits 
+
+
+Submission
+
+  Follow the submission instructions correctly.
+
+   - archive named a4.zip (or z4.zip as this was a typo in the
+     instructions)
+   - directory called a4 (or z4)
+   - only three files in that directory: README.txt, scene.h,
+     scene.cpp (or schene.cpp as this was a typo in the instructions)
+
+  /-1 if instructions not followed
+
+  /-20% per day for lateness
+
+  TA comments:
