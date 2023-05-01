@@ -1,0 +1,32 @@
+
+Glossy reflection:
+
+  feedback: "0/1 Calculate uniform random point on unit disk, not just in +x,+y quadrant  --  -1 a and b must be in the range [-1, 1] rather than [0, 1]"
+
+  response: why would we lose marks for this? a and b both get squared, so the result is the same?
+
+
+Antialiasing with jitter:
+  
+  feedback: "
+    -1 Since (x,y) is the centre of the pixel (from the comment in the
+       code), your xOffset and yOffset must be in the range
+       [-0.5,+0.5].  For example, when numPixelSamples = 1, you are
+       sampling at (x+0.5,y+0.5), which is the upper-right corner of
+       the pixel.
+
+    -1 jittering must be in [-0.5, 0.5] rather than [0, 1]"
+  
+  response: is this worth 2 marks off? The mistake is the same on both - incorrect coordinate used for the center of the pixel.
+  
+
+Soft shadows:
+  
+  feedback: "-1 Must pass -1 for the light index (last parameter), also, the condition to check if hit happens is always false."
+
+  response: the condition if (found && triPointDist < intT + epsilon && triPointDist > intT - epsilon) does not always return false. 
+            It works as intented.
+
+
+
+
